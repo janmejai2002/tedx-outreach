@@ -59,8 +59,3 @@ export const getLogs = async () => {
     const response = await axios.get(`${API_URL}/logs`, { headers: getAuthHeader() });
     return response.data;
 };
-
-export const researchSpeaker = async (id) => {
-    const response = await axios.post(`${API_URL}/research-speaker?speaker_id=${id}`, {}, { headers: getAuthHeader() });
-    return response.data;
-};

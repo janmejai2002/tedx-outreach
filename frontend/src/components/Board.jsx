@@ -633,6 +633,7 @@ const Board = () => {
                 }}
                 recentAdds={sessionAdds}
                 speakers={speakers}
+                onUpdate={handleSpeakerUpdate}
             />
 
             {/* Sidebar Activity Feed */}

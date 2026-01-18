@@ -193,34 +193,25 @@ def generate_email(
     }
     
     prompt = f"""
-    Write a highly personalized, persuasive HTML email invitation for a TEDx speaker.
-    THE GOAL: Convince {speaker.name} that they are the *perfect* fit for our theme.
+    Write a world-class, highly personalized email invitation for a prospective TEDx speaker.
+    THE MISSION: Convince {speaker.name} ({speaker.designation or 'Expert in ' + speaker.primary_domain}) that they are the essential missing piece for our upcoming event.
 
-    Speaker Profile:
+    Speaker Context:
     - Name: {speaker.name}
-    - Domain: {speaker.primary_domain}
-    - UNIQUENESS HOOK (The "Why You?"): {speaker.blurring_line_angle or 'Your unique ability to bridge disciplines'}
+    - Field/Domain: {speaker.primary_domain}
+    - The "Blurring Line" Angle: {speaker.blurring_line_angle or 'Their unique ability to bridge disparate fields'}
     
-    Event Details:
-    - Event: TEDxXLRI
-    - Theme: "Blurring Lines" (Converging distinct disciplines to create new innovations)
-    - Date: 20th February 2026
+    Event Context:
+    - Event: TEDxXLRI 2026
+    - Theme: "Blurring Lines"
+    - Theme Philosophy: We are exploring the intersections where rigid boundaries dissolve—between technology and art, logic and emotion, tradition and innovation.
     
-    Mandatory Requirements:
-    1. **THE HOOK**: Start immediately with the "Blurring Line Angle". Don't be generic. Example: "Your work at the intersection of X and Y is exactly what we are celebrating..."
-    2. **CONCISENESS**: Keep the main body under 200 words. Busy people don't read essays.
-    3. **TONE**: Professional but passionate. Admiring but not fawning.
-    4. **DESIGN**: HTML with inline CSS. Minimalist. Use TED Red (#e62b1e) for accents/buttons. Black text on white.
-    5. **HEADER**: Acknowledge the TEDxXLRI logo placeholder.
-    6. **CTA**: A clear, red button saying "I'm Interested - Let's Chat".
-
-    Output Format:
-    Return explicitly JSON with 3 keys:
+    Return explicitly JSON with these keys:
     - "subject": A catchy subject line (e.g., "TEDx Invitation: {speaker.name} + Blurring Lines")
     - "body_text": Plain text version
-    - "body_html": Full HTML string
+    - "body_html": Full HTML string with inline CSS. Use TED Red (#e62b1e) for accents.
     
-    Do not include markdown blocks like ```json.
+    Output Format: No talk, no markdown blocks. Just raw JSON.
     """
 
     payload = {
@@ -305,83 +296,6 @@ def refine_email(
         return email_data
     except Exception as e:
         print(f"AI Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/research-speaker")
-def research_speaker(
-    speaker_id: int, 
-    session: Session = Depends(get_session), 
-    user_name: str = Depends(get_current_user_name)
-):
-    speaker = session.get(Speaker, speaker_id)
-    if not speaker:
-        raise HTTPException(status_code=404, detail="Speaker not found")
-
-    url = "https://api.perplexity.ai/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {os.getenv('PERPLEXITY_API_KEY')}",
-        "Content-Type": "application/json"
-    }
-
-    prompt = f"""
-    Research the following person for a TEDx invitation. 
-    Find their current location (City, Country), their primary professional domain/expertise, and their LinkedIn profile URL.
-
-    Speaker Name: {speaker.name}
-    Current Info: {speaker.primary_domain or 'Unknown'} at {speaker.location or 'Unknown'}
-
-    Output Format:
-    Return explicitly JSON with 4 keys:
-    - "location": (e.g., "Mumbai, India")
-    - "primary_domain": (e.g., "Quantum Computing & Ethics")
-    - "linkedin_url": (Validated URL)
-    - "research_summary": (A 2-sentence professional bio)
-
-    Do not include markdown blocks.
-    """
-
-    payload = {
-        "model": "sonar",
-        "messages": [
-            {"role": "system", "content": "You are a professional researcher agent."},
-            {"role": "user", "content": prompt}
-        ]
-    }
-
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        result = response.json()
-        content = result['choices'][0]['message']['content']
-        
-        clean_content = content.replace('```json', '').replace('```', '').strip()
-        research_data = json.loads(clean_content)
-
-        # Map back to model
-        if research_data.get("location"): speaker.location = research_data["location"]
-        if research_data.get("primary_domain"): speaker.primary_domain = research_data["primary_domain"]
-        if research_data.get("linkedin_url"): speaker.linkedin_url = research_data["linkedin_url"]
-        if research_data.get("research_summary"): speaker.search_details = research_data["research_summary"]
-
-        speaker.status = OutreachStatus.RESEARCHED
-        speaker.last_updated = func.now()
-        
-        # User feedback
-        if user_name:
-            log = AuditLog(
-                user_name=user_name,
-                action="RESEARCH",
-                details=f"Researcher Agent enriched profile for {speaker.name}"
-            )
-            session.add(log)
-
-        session.add(speaker)
-        session.commit()
-        session.refresh(speaker)
-
-        return research_data
-    except Exception as e:
-        print(f"Research AI Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/export/csv")

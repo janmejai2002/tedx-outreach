@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Send, User, MapPin, Target, Edit, Save, Download, MessageSquare, Copy, CheckCircle, Mail, Linkedin, Globe, Search } from 'lucide-react';
-import { generateEmail, updateSpeaker, refineEmail, researchSpeaker } from '../api';
+import { generateEmail, updateSpeaker, refineEmail } from '../api';
 
 const OutreachModal = ({ speaker, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
@@ -11,7 +11,6 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
     const [chatInput, setChatInput] = useState("");
     const [refining, setRefining] = useState(false);
     const [isDraftEditing, setIsDraftEditing] = useState(false);
-    const [isResearching, setIsResearching] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -48,11 +47,12 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
         }
     };
 
-    const handleRefine = async () => {
-        if (!chatInput.trim()) return;
+    const handleRefine = async (overrideInput = null) => {
+        const instruction = overrideInput || chatInput;
+        if (!instruction.trim()) return;
         setRefining(true);
         try {
-            const newData = await refineEmail(emailData, chatInput);
+            const newData = await refineEmail(emailData, instruction);
             setEmailData(newData);
             setChatInput("");
             onUpdate(speaker.id, { email_draft: JSON.stringify(newData) });
@@ -63,28 +63,6 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
         }
     };
 
-    const handleResearch = async () => {
-        setIsResearching(true);
-        try {
-            const data = await researchSpeaker(speaker.id);
-            setFormData(prev => ({
-                ...prev,
-                location: data.location || prev.location,
-                primary_domain: data.primary_domain || prev.primary_domain,
-                linkedin_url: data.linkedin_url || prev.linkedin_url
-            }));
-            onUpdate(speaker.id, {
-                location: data.location,
-                primary_domain: data.primary_domain,
-                linkedin_url: data.linkedin_url,
-                status: 'RESEARCHED'
-            });
-        } catch (e) {
-            console.error("Research failed", e);
-        } finally {
-            setIsResearching(false);
-        }
-    };
 
     const handleDownload = () => {
         const blob = new Blob([emailData.body_html], { type: 'text/html' });
@@ -181,14 +159,6 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-bold text-white">Contact & Notes</h3>
                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={handleResearch}
-                                        disabled={isResearching}
-                                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 border border-blue-500/30 ${isResearching ? 'bg-blue-600/20 text-blue-300 animate-pulse' : 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400'}`}
-                                    >
-                                        {isResearching ? <Search size={12} className="animate-spin" /> : <Search size={12} />}
-                                        {isResearching ? 'Searching...' : '🔍 Research Agent'}
-                                    </button>
                                     <button
                                         onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
                                         className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${isEditing ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-300'}`}
@@ -347,23 +317,44 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                                            <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Refine Draft</label>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    className="flex-1 bg-black/50 border border-white/10 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500"
-                                                    placeholder='e.g., "Make it shorter"'
-                                                    value={chatInput}
-                                                    onChange={e => setChatInput(e.target.value)}
-                                                    onKeyDown={e => e.key === 'Enter' && handleRefine()}
-                                                />
-                                                <button
-                                                    onClick={handleRefine}
-                                                    disabled={refining}
-                                                    className="p-2 bg-white/10 hover:bg-white/20 rounded text-white transition-colors"
-                                                >
-                                                    {refining ? <Sparkles size={14} className="animate-spin" /> : <Send size={14} />}
-                                                </button>
+                                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+                                            <div>
+                                                <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Refine with AI</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 transition-all"
+                                                        placeholder='e.g., "Add a mention of our recent talk"'
+                                                        value={chatInput}
+                                                        onChange={e => setChatInput(e.target.value)}
+                                                        onKeyDown={e => e.key === 'Enter' && handleRefine()}
+                                                    />
+                                                    <button
+                                                        onClick={handleRefine}
+                                                        disabled={refining}
+                                                        className="p-2 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded-lg transition-all"
+                                                    >
+                                                        {refining ? <Sparkles size={14} className="animate-spin" /> : <Send size={14} />}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2">
+                                                {[
+                                                    { label: '✂️ Shorter', hint: 'Make it concise' },
+                                                    { label: '🏛️ More Formal', hint: 'Professional tone' },
+                                                    { label: '🔥 TED Spirit', hint: 'Passionate and visionary' },
+                                                    { label: '🤝 Personalized', hint: 'Emphasis on their work' }
+                                                ].map(tweak => (
+                                                    <button
+                                                        key={tweak.label}
+                                                        onClick={() => {
+                                                            handleRefine(tweak.hint);
+                                                        }}
+                                                        className="px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-md text-[10px] text-gray-400 hover:text-white transition-all"
+                                                    >
+                                                        {tweak.label}
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
 
