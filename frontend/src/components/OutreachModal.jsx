@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Send, User, MapPin, Target, Edit, Save, Download, MessageSquare, Copy, CheckCircle, Mail } from 'lucide-react';
-import { generateEmail, updateSpeaker, refineEmail } from '../api';
+import { X, Sparkles, Send, User, MapPin, Target, Edit, Save, Download, MessageSquare, Copy, CheckCircle, Mail, Linkedin, Globe, Search } from 'lucide-react';
+import { generateEmail, updateSpeaker, refineEmail, researchSpeaker } from '../api';
 
 const OutreachModal = ({ speaker, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
@@ -11,6 +11,7 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
     const [chatInput, setChatInput] = useState("");
     const [refining, setRefining] = useState(false);
     const [isDraftEditing, setIsDraftEditing] = useState(false);
+    const [isResearching, setIsResearching] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -21,7 +22,8 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
         location: speaker.location || '',
         primary_domain: speaker.primary_domain || '',
         blurring_line_angle: speaker.blurring_line_angle || '',
-        is_bounty: speaker.is_bounty || false
+        is_bounty: speaker.is_bounty || false,
+        linkedin_url: speaker.linkedin_url || ''
     });
 
     useEffect(() => {
@@ -58,6 +60,29 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
             console.error("Refine failed", e);
         } finally {
             setRefining(false);
+        }
+    };
+
+    const handleResearch = async () => {
+        setIsResearching(true);
+        try {
+            const data = await researchSpeaker(speaker.id);
+            setFormData(prev => ({
+                ...prev,
+                location: data.location || prev.location,
+                primary_domain: data.primary_domain || prev.primary_domain,
+                linkedin_url: data.linkedin_url || prev.linkedin_url
+            }));
+            onUpdate(speaker.id, {
+                location: data.location,
+                primary_domain: data.primary_domain,
+                linkedin_url: data.linkedin_url,
+                status: 'RESEARCHED'
+            });
+        } catch (e) {
+            console.error("Research failed", e);
+        } finally {
+            setIsResearching(false);
         }
     };
 
@@ -155,12 +180,22 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
                         <div className="space-y-6 max-w-3xl mx-auto">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-bold text-white">Contact & Notes</h3>
-                                <button
-                                    onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
-                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${isEditing ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-300'}`}
-                                >
-                                    {isEditing ? <><Save size={12} /> Save Changes</> : <><Edit size={12} /> Edit Details</>}
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleResearch}
+                                        disabled={isResearching}
+                                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 border border-blue-500/30 ${isResearching ? 'bg-blue-600/20 text-blue-300 animate-pulse' : 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400'}`}
+                                    >
+                                        {isResearching ? <Search size={12} className="animate-spin" /> : <Search size={12} />}
+                                        {isResearching ? 'Searching...' : '🔍 Research Agent'}
+                                    </button>
+                                    <button
+                                        onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
+                                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${isEditing ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-300'}`}
+                                    >
+                                        {isEditing ? <><Save size={12} /> Save Changes</> : <><Edit size={12} /> Edit Details</>}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -190,7 +225,7 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 bg-white/5 p-4 rounded-lg border border-white/5">
+                            <div className="grid grid-cols-3 gap-4 bg-white/5 p-4 rounded-lg border border-white/5">
                                 <div className="space-y-1">
                                     <label className="text-xs text-gray-400 font-bold">EMAIL</label>
                                     {isEditing ? (
@@ -201,14 +236,33 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
                                             className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none"
                                         />
                                     ) : (
-                                        <p className="text-sm text-white break-all">{formData.email || <span className="text-gray-600 italic">No email added</span>}</p>
+                                        <p className="text-sm text-white break-all">{formData.email || <span className="text-gray-600 italic">No email</span>}</p>
                                     )}
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs text-gray-400 font-bold">CONTACT METHOD</label>
+                                    <label className="text-xs text-gray-400 font-bold">LINKEDIN</label>
                                     {isEditing ? (
                                         <input
-                                            placeholder="Phone / LinkedIn / Twitter"
+                                            placeholder="URL..."
+                                            value={formData.linkedin_url}
+                                            onChange={e => setFormData({ ...formData, linkedin_url: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none"
+                                        />
+                                    ) : (
+                                        formData.linkedin_url ? (
+                                            <a href={formData.linkedin_url} target="_blank" rel="noreferrer" className="text-sm text-blue-400 hover:underline flex items-center gap-2">
+                                                <Linkedin size={14} /> Profile
+                                            </a>
+                                        ) : (
+                                            <p className="text-sm text-gray-600 italic">None</p>
+                                        )
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-400 font-bold">METHOD</label>
+                                    {isEditing ? (
+                                        <input
+                                            placeholder="Phone etc"
                                             value={formData.contact_method}
                                             onChange={e => setFormData({ ...formData, contact_method: e.target.value })}
                                             className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none"

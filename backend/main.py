@@ -272,6 +272,79 @@ def refine_email(request: RefineRequest):
         print(f"AI Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/research-speaker")
+def research_speaker(speaker_id: int, session: Session = Depends(get_session), x_user_name: Optional[str] = Header(None)):
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('PERPLEXITY_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+
+    prompt = f"""
+    Research the following person for a TEDx invitation. 
+    Find their current location (City, Country), their primary professional domain/expertise, and their LinkedIn profile URL.
+
+    Speaker Name: {speaker.name}
+    Current Info: {speaker.primary_domain or 'Unknown'} at {speaker.location or 'Unknown'}
+
+    Output Format:
+    Return explicitly JSON with 4 keys:
+    - "location": (e.g., "Mumbai, India")
+    - "primary_domain": (e.g., "Quantum Computing & Ethics")
+    - "linkedin_url": (Validated URL)
+    - "research_summary": (A 2-sentence professional bio)
+
+    Do not include markdown blocks.
+    """
+
+    payload = {
+        "model": "sonar",
+        "messages": [
+            {"role": "system", "content": "You are a professional researcher agent."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+        
+        clean_content = content.replace('```json', '').replace('```', '').strip()
+        research_data = json.loads(clean_content)
+
+        # Map back to model
+        if research_data.get("location"): speaker.location = research_data["location"]
+        if research_data.get("primary_domain"): speaker.primary_domain = research_data["primary_domain"]
+        if research_data.get("linkedin_url"): speaker.linkedin_url = research_data["linkedin_url"]
+        if research_data.get("research_summary"): speaker.search_details = research_data["research_summary"]
+
+        speaker.status = OutreachStatus.RESEARCHED
+        speaker.last_updated = func.now()
+        
+        # User feedback
+        if x_user_name:
+            log = AuditLog(
+                user_name=x_user_name,
+                action="RESEARCH",
+                details=f"Researcher Agent enriched profile for {speaker.name}"
+            )
+            session.add(log)
+
+        session.add(speaker)
+        session.commit()
+        session.refresh(speaker)
+
+        return research_data
+    except Exception as e:
+        print(f"Research AI Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/export/csv")
 def export_csv(session: Session = Depends(get_session)):
     query = select(Speaker)

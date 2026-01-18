@@ -16,6 +16,8 @@ class OutreachStatus(str, Enum):
 class Speaker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     batch: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    search_details: Optional[str] = None # To store AI research summary
     original_id: Optional[str] = None # The ID from the CSV
     name: str = Field(index=True)
     primary_domain: Optional[str] = None
@@ -44,6 +46,8 @@ class SpeakerUpdate(SQLModel):
     blurring_line_angle: Optional[str] = None
     primary_domain: Optional[str] = None
     is_bounty: Optional[bool] = None
+    linkedin_url: Optional[str] = None
+    search_details: Optional[str] = None
 
 class AuditLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
