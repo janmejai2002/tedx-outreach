@@ -1,0 +1,4 @@
+
+# 2. Add Requirements for production packages
+# 3. Create a Procfile for Render/Heroku
+web: uvicorn main:app --host 0.0.0.0 --port $PORT

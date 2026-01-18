@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-tedx-red: #E62B1E;
+  --color-tedx-black: #161616;
+  --color-tedx-dark: #0e0e0e;
+}
+
+@utility glass {
+  @apply bg-white/5 backdrop-blur-md border border-white/10;
+}
+
+@utility glass-hover {
+  @apply hover:bg-white/10 transition-colors duration-200;
+}
+
+body {
+  /* Using standard CSS for background color to be safe, creating the gradient overlay */
+  background-color: #020617;
+  /* ~slate-950 */
+  background-image: radial-gradient(circle at top left, #1a0505 0%, #000000 40%);
+  @apply text-white min-h-screen font-sans antialiased;
+}
