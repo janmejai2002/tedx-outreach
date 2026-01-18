@@ -156,6 +156,7 @@ const Board = () => {
     );
 
     const fetchLogs = async () => {
+        if (!localStorage.getItem('tedx_token')) return;
         try {
             const logs = await getLogs();
             if (logs && Array.isArray(logs)) {
@@ -166,12 +167,13 @@ const Board = () => {
                     user: l.user_name,
                     type: l.action
                 }));
-                // Only update if different to avoid re-renders? 
-                // Currently setActivityLog is simple.
                 setActivityLog(formatted);
             }
         } catch (e) {
             console.error("Log fetch failed", e);
+            if (e.response?.status === 401) {
+                handleLogout();
+            }
         }
     };
 
@@ -301,11 +303,14 @@ const Board = () => {
     };
 
     const handleLogout = () => {
+        const wasLoggedIn = !!localStorage.getItem('tedx_token');
         localStorage.removeItem('tedx_token');
         localStorage.removeItem('tedx_user');
         localStorage.removeItem('tedx_roll');
         setCurrentUser(null);
-        window.location.reload(); // Refresh to clear all sensitive state
+        if (wasLoggedIn) {
+            window.location.reload();
+        }
     };
 
     const handleSpeakerAdd = (newSpeaker) => {
@@ -314,6 +319,7 @@ const Board = () => {
     };
 
     const fetchSpeakers = async () => {
+        if (!localStorage.getItem('tedx_token')) return;
         try {
             const data = await getSpeakers();
             setSpeakers(data);
