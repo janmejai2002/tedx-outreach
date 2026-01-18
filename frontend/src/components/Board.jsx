@@ -178,15 +178,18 @@ const Board = () => {
     };
 
     useEffect(() => {
-        fetchSpeakers();
-        fetchLogs();
-        const interval = setInterval(fetchLogs, 10000);
+        if (currentUser) {
+            fetchSpeakers();
+            fetchLogs();
+            const interval = setInterval(fetchLogs, 10000);
+            return () => clearInterval(interval);
+        }
+    }, [currentUser]);
 
-        // Check for first-time tour
+    useEffect(() => {
         if (!localStorage.getItem('tedx_tour_completed')) {
             setShowTour(true);
         }
-        return () => clearInterval(interval);
     }, []);
 
     const [showTour, setShowTour] = useState(false);
@@ -430,157 +433,129 @@ const Board = () => {
     const myBadge = getBadge(userXP);
 
     return (
-        <div className="h-screen flex flex-col bg-[#050505] text-white overflow-hidden">
-            {/* Navbar */}
-            <header className="h-20 border-b border-white/10 flex items-center justify-between px-6 bg-black/40 backdrop-blur-md z-10">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center font-bold">X</div>
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight leading-none">TEDx<span className="text-red-600">XLRI</span></h1>
-                        <p className="text-[10px] text-gray-500 tracking-widest uppercase">Outreach Dashboard</p>
+        <div className="h-screen flex flex-col bg-[#050505] text-white overflow-hidden font-sans">
+            {/* Redesigned Premium Navbar */}
+            <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-black/60 backdrop-blur-xl z-20 sticky top-0">
+                {/* Left: Branding */}
+                <div className="flex items-center gap-4">
+                    <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center font-black shadow-lg shadow-red-600/20 transform hover:rotate-6 transition-transform cursor-pointer">X</div>
+                    <div className="hidden sm:block">
+                        <h1 className="text-lg font-black tracking-tighter leading-none flex items-center gap-1">
+                            TEDx<span className="text-red-600">XLRI</span>
+                        </h1>
+                        <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase opacity-70">Outreach Terminal</p>
                     </div>
                 </div>
 
-                <div className="flex-1 max-w-xl mx-6 flex gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
+                {/* Center: Search & Primary Actions */}
+                <div className="flex-1 max-w-2xl mx-8 flex items-center gap-3">
+                    <div className="relative flex-1 group">
+                        <Search className="absolute left-3.5 top-2.5 text-gray-500 group-focus-within:text-red-500 transition-colors" size={15} />
                         <input
                             type="text"
-                            placeholder="Search speakers..."
+                            placeholder="Find speakers, domains, or leads..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-red-500/50 transition-colors"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-red-500/30 focus:bg-white/10 transition-all placeholder:text-gray-600"
                         />
                     </div>
-                    <button
-                        onClick={exportSpeakers}
-                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm flex items-center gap-2 transition-all"
-                    >
-                        <Download size={14} /> Export CSV
-                    </button>
-                    <button
-                        onClick={() => setIsAdding(true)}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 rounded-full text-sm font-bold transition-all"
-                        data-tour="add-btn"
-                    >
-                        + Add Speaker
-                    </button>
 
-                    <button
-                        onClick={() => setShowFocusMode(true)}
-                        className="px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 text-yellow-500 rounded-full text-sm font-bold transition-all flex items-center gap-2"
-                        title="Enter Focus Mode"
-                        data-tour="focus-btn"
-                    >
-                        <Zap size={14} /> Focus
-                    </button>
+                    <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5">
+                        <button
+                            onClick={() => setIsAdding(true)}
+                            className="h-8 pl-3 pr-4 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-red-900/20"
+                            data-tour="add-btn"
+                        >
+                            <span className="text-base font-normal">+</span> Add
+                        </button>
+                        <button
+                            onClick={() => setShowFocusMode(true)}
+                            className="h-8 w-8 bg-white/5 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg flex items-center justify-center transition-all"
+                            title="Focus Mode (Zap)"
+                        >
+                            <Zap size={14} />
+                        </button>
+                    </div>
+                </div>
 
-                    <button
-                        onClick={() => {
-                            setIsSelectMode(!isSelectMode);
-                            setSelectedIds(new Set());
-                        }}
-                        className={`px-4 py-2 border rounded-full text-sm font-bold transition-all flex items-center gap-2 ${isSelectMode ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
-                    >
-                        <CheckSquare size={14} /> {isSelectMode ? 'Done' : 'Select'}
-                    </button>
-
-                    {/* Undo/Redo Controls */}
-                    <div className="flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10 ml-2">
+                {/* Right: Tools & Profile */}
+                <div className="flex items-center gap-5">
+                    {/* Tool Cluster */}
+                    <div className="hidden lg:flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5">
                         <button
                             onClick={handleUndo}
                             disabled={historyIndex < 0}
-                            className={`p-2 rounded-full transition-colors ${historyIndex < 0 ? 'text-gray-600 cursor-not-allowed' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}
+                            className={`p-1.5 rounded-lg transition-colors ${historyIndex < 0 ? 'text-gray-700 opacity-50 cursor-not-allowed' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
                             title="Undo (Ctrl+Z)"
                         >
-                            <Undo size={16} />
+                            <Undo size={14} />
                         </button>
                         <button
                             onClick={handleRedo}
                             disabled={historyIndex >= history.length - 1}
-                            className={`p-2 rounded-full transition-colors ${historyIndex >= history.length - 1 ? 'text-gray-600 cursor-not-allowed' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}
+                            className={`p-1.5 rounded-lg transition-colors ${historyIndex >= history.length - 1 ? 'text-gray-700 opacity-50 cursor-not-allowed' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
                             title="Redo (Ctrl+Y)"
                         >
-                            <Redo size={16} />
+                            <Redo size={14} />
+                        </button>
+                        <div className="w-px h-4 bg-white/10 mx-1" />
+                        <button
+                            onClick={() => {
+                                setIsSelectMode(!isSelectMode);
+                                setSelectedIds(new Set());
+                            }}
+                            className={`px-3 h-8 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${isSelectMode ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30' : 'text-gray-400 hover:bg-white/10'}`}
+                        >
+                            <CheckSquare size={13} /> {isSelectMode ? 'Select On' : 'Select'}
+                        </button>
+                        <button
+                            onClick={exportSpeakers}
+                            className="h-8 px-3 text-gray-400 hover:bg-white/10 text-xs font-bold rounded-lg flex items-center gap-2 transition-all"
+                        >
+                            <Download size={13} /> Export
                         </button>
                     </div>
-                </div>
 
-                {/* Gamification Widget */}
-                <div className="flex items-center gap-6">
-
-                    {/* Activity Feed Toggle */}
-                    <button
-                        onClick={() => setShowActivity(!showActivity)}
-                        className={`p-2 rounded-full transition-all relative ${showActivity ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                    >
-                        <ListTodo size={18} />
-                        {activityLog.length > 0 && !showActivity && (
-                            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-black animate-pulse" />
-                        )}
-                    </button>
-
-                    {/* Leaderboard Mini */}
-                    <div className="hidden lg:flex items-center gap-4 border-r border-white/10 pr-6">
-                        {leaderboard.map((user, i) => (
-                            <div key={user.name} className="text-xs text-gray-400">
-                                <span className="font-bold text-white mr-1">#{i + 1}</span>
-                                {user.name.split(' ')[0]}
-                                <span className="text-yellow-500 ml-1">{user.score}xp</span>
+                    {/* Stats Cluster */}
+                    <div className="flex items-center gap-4 border-l border-white/10 pl-5">
+                        <div className="hidden xl:flex flex-col items-end">
+                            <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                                <Flame size={10} className="text-orange-500" /> LVL {Math.floor(userXP / 500) + 1}
                             </div>
-                        ))}
-                    </div>
-
-                    {/* User Profile */}
-                    {/* User Profile & Progress */}
-                    <div className="flex items-center gap-4">
-                        <div className="hidden xl:flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                                <Star size={10} className="text-yellow-500" /> Progression
-                            </div>
-                            <div className="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
+                            <div className="w-24 h-1 bg-white/5 rounded-full mt-1 overflow-hidden border border-white/5">
                                 <motion.div
                                     className="h-full bg-gradient-to-r from-red-600 to-orange-500"
                                     initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min(100, (userXP % 500) / 5)}%` }}
+                                    animate={{ width: `${(userXP % 500) / 5}%` }}
                                 />
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setShowGuide(true)}
-                                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                                title="Outreach Guide"
-                                data-tour="guide-btn"
-                            >
-                                <CircleHelp size={18} />
-                            </button>
-                            <div className="text-right">
-                                <div className="text-xs text-gray-400 flex items-center justify-end gap-1">
-                                    {currentUser}
-                                    <div className="flex items-center gap-0.5 text-orange-500 font-bold bg-orange-500/10 px-1.5 py-0.5 rounded cursor-help" title={`${streak} Day Streak!`}>
-                                        <Flame size={12} fill="currentColor" /> {streak}
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-end gap-1 text-sm font-bold leading-none mt-0.5">
-                                    <span className={myBadge.color}>{myBadge.icon}</span>
-                                    {userXP} <span className="text-[10px] text-gray-500 font-normal ml-0.5">XP</span>
-                                </div>
+                        <button
+                            onClick={() => setShowActivity(!showActivity)}
+                            className={`relative h-9 w-9 flex items-center justify-center rounded-xl transition-all ${showActivity ? 'bg-red-600/20 text-red-500 border border-red-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                        >
+                            <Bell size={16} />
+                            {activityLog.length > 0 && !showActivity && (
+                                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full border border-black" />
+                            )}
+                        </button>
+
+                        <div
+                            onClick={handleLogout}
+                            className="relative group cursor-pointer"
+                        >
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-purple-700 flex items-center justify-center font-black text-xs border border-white/20 shadow-lg shadow-red-900/20 group-hover:scale-105 transition-transform">
+                                {currentUser ? currentUser[0] : '?'}
                             </div>
-                            <div
-                                onClick={handleLogout}
-                                className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-purple-700 flex items-center justify-center font-bold text-sm border-2 border-white/20 shadow-lg shadow-red-900/40 cursor-pointer hover:scale-105 active:scale-95 transition-all group relative"
-                            >
-                                {currentUser[0]}
-                                <div className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] text-white">
-                                    Exit
-                                </div>
+                            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-black rounded-full" />
+                            <div className="absolute top-1/2 -right-2 transform -translate-y-1/2 translate-x-full bg-black/90 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-white/10">
+                                LOGOUT
                             </div>
                         </div>
                     </div>
                 </div>
-            </header >
+            </header>
 
             {/* Board */}
             < DndContext
