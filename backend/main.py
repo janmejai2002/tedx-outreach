@@ -64,6 +64,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/healthz")
+def health_check():
+    return {"status": "healthy"}
+
 @app.get("/speakers", response_model=List[Speaker])
 def read_speakers(
     session: Session = Depends(get_session),
