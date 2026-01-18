@@ -12,8 +12,12 @@ import os
 import io
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from auth_utils import create_access_token, verify_token, AUTHORIZED_USERS, get_current_user_name
 
 load_dotenv()
+
+class LoginRequest(BaseModel):
+    roll_number: str
 
 class RefineRequest(BaseModel):
     current_draft: str
@@ -68,12 +72,27 @@ app.add_middleware(
 def health_check():
     return {"status": "healthy"}
 
+@app.post("/login")
+def login(request: LoginRequest):
+    roll = request.roll_number.lower().strip()
+    if roll in AUTHORIZED_USERS:
+        user_name = AUTHORIZED_USERS[roll]
+        access_token = create_access_token(data={"sub": user_name, "roll": roll})
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer",
+            "user_name": user_name,
+            "roll_number": roll
+        }
+    raise HTTPException(status_code=401, detail="Invalid roll number")
+
 @app.get("/speakers", response_model=List[Speaker])
 def read_speakers(
     session: Session = Depends(get_session),
     status: Optional[str] = None,
     limit: int = 300,
-    offset: int = 0
+    offset: int = 0,
+    user: dict = Depends(verify_token)
 ):
     query = select(Speaker)
     if status:
@@ -84,15 +103,19 @@ def read_speakers(
     return speakers
 
 @app.post("/speakers", response_model=Speaker)
-def create_speaker(speaker: Speaker, session: Session = Depends(get_session), x_user_name: Optional[str] = Header(None)):
+def create_speaker(
+    speaker: Speaker, 
+    session: Session = Depends(get_session), 
+    user_name: str = Depends(get_current_user_name)
+):
     session.add(speaker)
     session.commit()
     session.refresh(speaker)
     
     # Audit Log
-    if x_user_name:
+    if user_name:
         log = AuditLog(
-            user_name=x_user_name,
+            user_name=user_name,
             action="ADD",
             details=f"Added speaker {speaker.name} to {speaker.status.value}"
         )
@@ -109,7 +132,12 @@ def read_speaker(speaker_id: int, session: Session = Depends(get_session)):
     return speaker
 
 @app.patch("/speakers/{speaker_id}", response_model=Speaker)
-def update_speaker(speaker_id: int, speaker_update: SpeakerUpdate, session: Session = Depends(get_session), x_user_name: Optional[str] = Header(None)):
+def update_speaker(
+    speaker_id: int, 
+    speaker_update: SpeakerUpdate, 
+    session: Session = Depends(get_session), 
+    user_name: str = Depends(get_current_user_name)
+):
     db_speaker = session.get(Speaker, speaker_id)
     if not db_speaker:
         raise HTTPException(status_code=404, detail="Speaker not found")
@@ -123,7 +151,7 @@ def update_speaker(speaker_id: int, speaker_update: SpeakerUpdate, session: Sess
     session.add(db_speaker)
     
     # Audit Log
-    if x_user_name:
+    if user_name:
         action = "UPDATE"
         details = f"Updated profile for {db_speaker.name}"
         
@@ -137,7 +165,7 @@ def update_speaker(speaker_id: int, speaker_update: SpeakerUpdate, session: Sess
             details = f"{status_str} {db_speaker.name} as Bounty"
             
         log = AuditLog(
-            user_name=x_user_name,
+            user_name=user_name,
             action=action,
             details=details
         )
@@ -148,7 +176,11 @@ def update_speaker(speaker_id: int, speaker_update: SpeakerUpdate, session: Sess
     return db_speaker
 
 @app.post("/generate-email")
-def generate_email(speaker_id: int, session: Session = Depends(get_session)):
+def generate_email(
+    speaker_id: int, 
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
     speaker = session.get(Speaker, speaker_id)
     if not speaker:
         raise HTTPException(status_code=404, detail="Speaker not found")
@@ -227,7 +259,10 @@ def generate_email(speaker_id: int, session: Session = Depends(get_session)):
         }
 
 @app.post("/refine-email")
-def refine_email(request: RefineRequest):
+def refine_email(
+    request: RefineRequest,
+    user: dict = Depends(verify_token)
+):
     # Real AI Refinement via Perplexity
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
@@ -273,7 +308,11 @@ def refine_email(request: RefineRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/research-speaker")
-def research_speaker(speaker_id: int, session: Session = Depends(get_session), x_user_name: Optional[str] = Header(None)):
+def research_speaker(
+    speaker_id: int, 
+    session: Session = Depends(get_session), 
+    user_name: str = Depends(get_current_user_name)
+):
     speaker = session.get(Speaker, speaker_id)
     if not speaker:
         raise HTTPException(status_code=404, detail="Speaker not found")
@@ -328,9 +367,9 @@ def research_speaker(speaker_id: int, session: Session = Depends(get_session), x
         speaker.last_updated = func.now()
         
         # User feedback
-        if x_user_name:
+        if user_name:
             log = AuditLog(
-                user_name=x_user_name,
+                user_name=user_name,
                 action="RESEARCH",
                 details=f"Researcher Agent enriched profile for {speaker.name}"
             )
@@ -363,6 +402,10 @@ def export_csv(session: Session = Depends(get_session)):
     return response
 
 @app.get("/logs", response_model=List[AuditLog])
-def read_logs(limit: int = 50, session: Session = Depends(get_session)):
+def read_logs(
+    limit: int = 50, 
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
     query = select(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit)
     return session.exec(query).all()

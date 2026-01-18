@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, ArrowRight, AlertCircle } from 'lucide-react';
-import { AUTHORIZED_USERS, normalizeRollNumber } from '../auth_users';
+import { loginUser } from '../api';
 
 const LoginModal = ({ onLogin }) => {
     const [rollNumber, setRollNumber] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const normalized = normalizeRollNumber(rollNumber);
+        setIsLoading(true);
+        setError('');
 
-        if (AUTHORIZED_USERS[normalized]) {
-            const userName = AUTHORIZED_USERS[normalized];
-            onLogin(userName, normalized); // Pass name and roll number
-        } else {
-            setError('Access Denied. Roll number not found.');
+        try {
+            const data = await loginUser(rollNumber);
+            onLogin(data.user_name, data.roll_number);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Access Denied. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -65,10 +69,12 @@ const LoginModal = ({ onLogin }) => {
 
                         <button
                             type="submit"
-                            disabled={!rollNumber.trim()}
+                            disabled={!rollNumber.trim() || isLoading}
                             className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-red-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                            Enter Dashboard <ArrowRight size={16} />
+                            {isLoading ? 'Authenticating...' : (
+                                <>Enter Dashboard <ArrowRight size={16} /></>
+                            )}
                         </button>
                     </form>
                 </div>

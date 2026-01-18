@@ -297,8 +297,15 @@ const Board = () => {
     };
 
     const handleLogin = (name) => {
-        localStorage.setItem('tedx_user', name);
         setCurrentUser(name);
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('tedx_token');
+        localStorage.removeItem('tedx_user');
+        localStorage.removeItem('tedx_roll');
+        setCurrentUser(null);
+        window.location.reload(); // Refresh to clear all sensitive state
     };
 
     const handleSpeakerAdd = (newSpeaker) => {
@@ -312,6 +319,9 @@ const Board = () => {
             setSpeakers(data);
         } catch (e) {
             console.error("Failed to fetch", e);
+            if (e.response?.status === 401) {
+                handleLogout();
+            }
         }
     };
 
@@ -552,8 +562,14 @@ const Board = () => {
                                     {userXP} <span className="text-[10px] text-gray-500 font-normal ml-0.5">XP</span>
                                 </div>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-purple-700 flex items-center justify-center font-bold text-sm border-2 border-white/20 shadow-lg shadow-red-900/40">
+                            <div
+                                onClick={handleLogout}
+                                className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-purple-700 flex items-center justify-center font-bold text-sm border-2 border-white/20 shadow-lg shadow-red-900/40 cursor-pointer hover:scale-105 active:scale-95 transition-all group relative"
+                            >
                                 {currentUser[0]}
+                                <div className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] text-white">
+                                    Exit
+                                </div>
                             </div>
                         </div>
                     </div>
