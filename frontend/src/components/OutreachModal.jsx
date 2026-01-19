@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Target, Mail, Globe, Linkedin, MapPin, AlertCircle,
+    Trash2, ExternalLink, Download, Send, Smartphone,
+    User, Sparkles, X, Activity, Users, TrendingUp
+} from 'lucide-react';
 import { getSpeakerLogs, assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail } from '../api';
 
 const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], currentUser = null }) => {

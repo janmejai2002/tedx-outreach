@@ -21,7 +21,7 @@ import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
 import { getSpeakers, updateSpeaker, exportSpeakers, getLogs } from '../api';
-import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp } from 'lucide-react';
+import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // New Granular Workflow
