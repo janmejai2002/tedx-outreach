@@ -59,13 +59,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# CORS Setup
+# CORS Setup - Allow all origins for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow all for production accessibility
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 @app.get("/healthz")
