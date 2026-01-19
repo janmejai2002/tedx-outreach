@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Save, Zap, CheckCircle, Search, Mail, UserPlus, Database, ArrowRight, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Save, Zap, CheckCircle, Search, Mail, UserPlus, Database, ArrowRight, ExternalLink, Map } from 'lucide-react';
 import { updateSpeaker, createSpeaker } from '../api';
 
 const FocusMode = ({ isOpen, onClose, onAdd, onUpdate, recentAdds = [], speakers = [] }) => {
