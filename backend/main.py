@@ -219,7 +219,7 @@ def generate_email(
     """
 
     payload = {
-        "model": "sonar-pro",
+        "model": "sonar",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant that writes perfect JSON email drafts."},
             {"role": "user", "content": prompt}
@@ -282,7 +282,7 @@ def refine_email(
     """
 
     payload = {
-        "model": "sonar-pro",
+        "model": "sonar",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant that edits JSON email drafts."},
             {"role": "user", "content": prompt}
