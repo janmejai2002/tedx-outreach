@@ -614,7 +614,7 @@ const Board = () => {
                 onDragEnd={handleDragEnd}
                 collisionDetection={closestCorners}
             >
-                <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar-x snap-x snap-mandatory" data-tour="kanban">
+                <div className="flex-1 overflow-x-auto p-6 custom-scrollbar-x snap-x snap-mandatory" data-tour="kanban">
                     <div className="flex gap-4 h-full min-w-max">
                         {Object.entries(SECTIONS).map(([key, title]) => (
                             <div key={key} className="snap-center h-full">
