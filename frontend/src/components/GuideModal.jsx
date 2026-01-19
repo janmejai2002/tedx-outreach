@@ -10,6 +10,7 @@ const GuideModal = ({ isOpen, onClose, userXP = 0, streak = 0 }) => {
     const tabs = [
         { id: 'start', label: 'Getting Started', icon: <Map size={16} /> },
         { id: 'tools', label: 'Scouting Tools', icon: <Search size={16} /> },
+        { id: 'flash', label: 'Flash Mode', icon: <Zap size={16} className="text-yellow-500" /> },
         { id: 'workflow', label: 'Workflow', icon: <Database size={16} /> },
         { id: 'gamification', label: 'Profile & Rewards', icon: <Trophy size={16} /> },
     ];
@@ -123,6 +124,58 @@ const GuideModal = ({ isOpen, onClose, userXP = 0, streak = 0 }) => {
                                                 "Try: `site:company.com \"Speaker Name\"`"
                                             ]}
                                         />
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'flash' && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                                            <Zap size={24} className="text-yellow-500 fill-yellow-500/20" /> Flash Mode
+                                        </h3>
+                                        <p className="text-gray-400">
+                                            The most efficient way to scale our speaker database. Use this mode when you want to focus on high-speed data entry.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="bg-red-600/5 border border-red-500/20 p-6 rounded-2xl relative overflow-hidden group">
+                                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                                <Search size={60} />
+                                            </div>
+                                            <h4 className="text-red-500 font-bold text-lg mb-2">1. Add New Mode</h4>
+                                            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+                                                Best for <strong>Bulk Scouting</strong>. Stay on LinkedIn, find a profile, and quickly commit their basic details to our board.
+                                            </p>
+                                            <ul className="text-[10px] text-gray-500 space-y-2">
+                                                <li className="flex items-center gap-2">💨 Keyboard focused entry</li>
+                                                <li className="flex items-center gap-2">⚡ Ctrl+Enter to save instantly</li>
+                                            </ul>
+                                        </div>
+
+                                        <div className="bg-blue-600/5 border border-blue-500/20 p-6 rounded-2xl relative overflow-hidden group">
+                                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                                <Mail size={60} />
+                                            </div>
+                                            <h4 className="text-blue-500 font-bold text-lg mb-2">2. Enrich Mode</h4>
+                                            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+                                                The <strong>Email Hunter's</strong> choice. Automatically cycles through speakers who lack contact info.
+                                            </p>
+                                            <ul className="text-[10px] text-gray-500 space-y-2">
+                                                <li className="flex items-center gap-2">🔍 One-click Search buttons</li>
+                                                <li className="flex items-center gap-2">⏭️ Auto-next on save</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                                        <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                                            <Zap size={16} className="text-yellow-500" /> Pro Power-User Tip
+                                        </h4>
+                                        <p className="text-sm text-gray-400 leading-relaxed italic">
+                                            "Keep LinkedIn open in a separate window. Use **Add New** to dump 10-15 interesting people, then flip to **Enrich** to find all their emails in one sitting. It's 5x faster than doing them one-by-one."
+                                        </p>
                                     </div>
                                 </div>
                             )}

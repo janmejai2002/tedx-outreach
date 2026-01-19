@@ -18,6 +18,7 @@ import LoginModal from './LoginModal';
 import GuideModal from './GuideModal';
 import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
+import RecruiterDashboard from './RecruiterDashboard';
 import { getSpeakers, updateSpeaker, exportSpeakers, getLogs } from '../api';
 import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -127,10 +128,14 @@ const Board = () => {
     // Focus Mode
     const [showFocusMode, setShowFocusMode] = useState(false);
     const [sessionAdds, setSessionAdds] = useState([]);
+    const [showHub, setShowHub] = useState(false);
 
     // Bulk Selection
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState(new Set());
+
+    // Achievement Notification State
+    const [latestAchievement, setLatestAchievement] = useState(null);
 
     const toggleSelection = (id) => {
         const newSet = new Set(selectedIds);
@@ -412,6 +417,14 @@ const Board = () => {
                 // Unlock Achievement
                 if (newStatus === 'LOCKED' && !achievements.includes('First Lock')) {
                     setAchievements(prev => [...prev, 'First Lock']);
+                    setLatestAchievement({ title: "First Lock!", subtitle: "The first of many.", icon: "🏆" });
+                    setTimeout(() => setLatestAchievement(null), 4000);
+                }
+
+                if (newStatus === 'EMAIL_ADDED' && activeDetails.status === 'SCOUTED' && !achievements.includes('Lead Hunter')) {
+                    setAchievements(prev => [...prev, 'Lead Hunter']);
+                    setLatestAchievement({ title: "Lead Hunter", subtitle: "Verified a prospect.", icon: "📡" });
+                    setTimeout(() => setLatestAchievement(null), 4000);
                 }
 
             } catch (e) {
@@ -470,10 +483,15 @@ const Board = () => {
                         </button>
                         <button
                             onClick={() => setShowFocusMode(true)}
-                            className="h-8 w-8 bg-white/5 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg flex items-center justify-center transition-all"
-                            title="Focus Mode (Zap)"
+                            className="h-8 w-8 bg-yellow-400/10 hover:bg-yellow-400 text-yellow-500 hover:text-black rounded-lg flex items-center justify-center transition-all border border-yellow-500/20 hover:border-yellow-400 relative overflow-hidden group"
+                            title="Flash Mode (Ultra-Fast Scouting)"
                         >
-                            <Zap size={14} />
+                            <motion.div
+                                className="absolute inset-0 bg-yellow-400/20"
+                                animate={{ opacity: [0.1, 0.4, 0.1] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                            />
+                            <Zap size={14} className="relative z-10 group-hover:fill-current" />
                         </button>
                     </div>
                 </div>
@@ -532,8 +550,19 @@ const Board = () => {
                         </div>
 
                         <button
+                            onClick={() => setShowHub(!showHub)}
+                            className={`relative h-9 px-4 flex items-center justify-center gap-2 rounded-xl transition-all border ${showHub ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-900/40' : 'bg-white/5 text-gray-400 border-white/5 hover:bg-white/10'}`}
+                        >
+                            <Trophy size={16} />
+                            <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Hub</span>
+                            {quests.some(q => q.completed) && !showHub && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-500 rounded-full border-2 border-black animate-bounce" />
+                            )}
+                        </button>
+
+                        <button
                             onClick={() => setShowActivity(!showActivity)}
-                            className={`relative h-9 w-9 flex items-center justify-center rounded-xl transition-all ${showActivity ? 'bg-red-600/20 text-red-500 border border-red-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                            className={`relative h-9 w-9 flex items-center justify-center rounded-xl transition-all ${showActivity ? 'bg-blue-600/20 text-blue-500 border border-blue-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
                         >
                             <Bell size={16} />
                             {activityLog.length > 0 && !showActivity && (
@@ -556,6 +585,27 @@ const Board = () => {
                     </div>
                 </div>
             </header>
+
+            {/* Mission Progress Tracker Bar */}
+            <div className="bg-gradient-to-r from-red-600/5 via-black to-red-600/5 border-b border-white/5 h-10 px-6 flex items-center justify-between z-10">
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Goal: Early Bird Lineup</span>
+                        <div className="w-48 h-1.5 bg-white/5 rounded-full border border-white/5 overflow-hidden">
+                            <motion.div
+                                className="h-full bg-gradient-to-r from-red-600 to-red-400"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(speakers.filter(s => s.status === 'LOCKED').length / 12) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4 text-[9px] font-black text-red-500 uppercase tracking-widest bg-red-600/10 px-3 py-1 rounded-full border border-red-600/20">
+                    <span className="animate-pulse">● LIVE OPS</span>
+                    <span className="text-gray-400 text-[8px] border-l border-white/10 pl-4">{speakers.filter(s => s.status !== 'LOCKED').length} Leads in Pipeline</span>
+                </div>
+            </div>
 
             {/* Board */}
             < DndContext
@@ -634,6 +684,20 @@ const Board = () => {
                 recentAdds={sessionAdds}
                 speakers={speakers}
                 onUpdate={handleSpeakerUpdate}
+            />
+
+            <RecruiterDashboard
+                isOpen={showHub}
+                onClose={() => setShowHub(false)}
+                userXP={userXP}
+                streak={streak}
+                leaderboard={leaderboard}
+                quests={quests}
+                userName={currentUser}
+                teamGoal={{
+                    current: speakers.filter(s => s.status === 'LOCKED').length,
+                    target: 12 // Adjusted target for a team
+                }}
             />
 
             {/* Sidebar Activity Feed */}
@@ -739,6 +803,26 @@ const Board = () => {
                         >
                             Clear
                         </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Achievement Toast */}
+            <AnimatePresence>
+                {latestAchievement && (
+                    <motion.div
+                        initial={{ y: -100, opacity: 0, x: '-50%' }}
+                        animate={{ y: 24, opacity: 1, x: '-50%' }}
+                        exit={{ y: -100, opacity: 0, x: '-50%' }}
+                        className="fixed top-24 left-1/2 z-[100] bg-white text-black px-6 py-4 rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-4 min-w-[300px]"
+                    >
+                        <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-red-200">
+                            {latestAchievement.icon}
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-black uppercase tracking-widest leading-none mb-1">{latestAchievement.title}</h4>
+                            <p className="text-xs text-gray-500 font-medium">{latestAchievement.subtitle}</p>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

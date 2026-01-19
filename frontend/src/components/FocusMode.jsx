@@ -108,26 +108,50 @@ const FocusMode = ({ isOpen, onClose, onAdd, onUpdate, recentAdds = [], speakers
                             <ArrowLeft size={20} />
                         </button>
 
+                        <div className="flex items-center gap-2">
+                            <Zap size={18} className="text-yellow-500 fill-yellow-500/20" />
+                            <h2 className="text-sm font-black text-white uppercase tracking-[0.2em]">Flash Mode</h2>
+                        </div>
+
                         {/* Mode Switcher */}
                         <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mx-4">
                             <button
                                 onClick={() => setMode('ADD')}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${mode === 'ADD' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${mode === 'ADD' ? 'bg-red-600 text-white shadow-lg shadow-red-900/40 translate-y-[-1px]' : 'text-gray-500 hover:text-gray-300'}`}
                             >
-                                <UserPlus size={14} /> Add New
+                                <UserPlus size={12} /> Add New
                             </button>
                             <button
                                 onClick={() => setMode('ENRICH')}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${mode === 'ENRICH' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${mode === 'ENRICH' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40 translate-y-[-1px]' : 'text-gray-500 hover:text-gray-300'}`}
                             >
-                                <Database size={14} /> Enrich ({speakersToEnrich.length})
+                                <Database size={12} /> Enrich ({speakersToEnrich.length})
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-gray-500">
-                        <span className="flex items-center gap-2"><span className="bg-white/10 px-1.5 py-0.5 rounded text-white">CTRL + ENTER</span> SAVE</span>
-                        <span className="flex items-center gap-2"><span className="bg-white/10 px-1.5 py-0.5 rounded text-white">ESC</span> EXIT</span>
+                    <div className="flex items-center gap-8">
+                        <div className="hidden md:flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                            <span className="flex items-center gap-2">
+                                <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-mono">CTRL + ENTER</span>
+                                COMMIT
+                            </span>
+                            <span className="flex items-center gap-2">
+                                <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-mono">ESC</span>
+                                ABORT
+                            </span>
+                        </div>
+                        <div className="w-px h-4 bg-white/10" />
+                        <button
+                            className="text-[10px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest flex items-center gap-2 transition-colors"
+                            onClick={() => {
+                                // We can't directly open GuideModal from here unless we pass a prop or use a global state
+                                // For now, let's just make sure they know there's a guide
+                                alert("Check the 'Outreach Playbook' (?) on the main board for the full Flash Mode guide!");
+                            }}
+                        >
+                            <Map size={14} /> View Playbook
+                        </button>
                     </div>
                 </div>
 
