@@ -3,15 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, Mail, Globe, Briefcase, CheckCircle,
     Send, X, Activity, DollarSign, Target, User, Sparkles,
-    Linkedin, ExternalLink, Smartphone, Save
+    Linkedin, ExternalLink, Smartphone, Save, TrendingUp
 } from 'lucide-react';
 import { generateSponsorEmail, updateSponsor } from '../api';
 
 const SponsorModal = ({ sponsor, onClose, onUpdate, authorizedUsers = [], currentUser = null }) => {
     const [loading, setLoading] = useState(false);
-    const [emailData, setEmailData] = useState(null);
+    const [pitchKit, setPitchKit] = useState(null);
     const [activeTab, setActiveTab] = useState('details');
+    const [pitchFormat, setPitchFormat] = useState('email'); // email | one_pager | inmail
     const [isEditing, setIsEditing] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [formData, setFormData] = useState({
         company_name: sponsor.company_name || '',
         industry: sponsor.industry || '',
@@ -28,7 +30,7 @@ const SponsorModal = ({ sponsor, onClose, onUpdate, authorizedUsers = [], curren
     useEffect(() => {
         if (sponsor.email_draft) {
             try {
-                setEmailData(JSON.parse(sponsor.email_draft));
+                setPitchKit(JSON.parse(sponsor.email_draft));
             } catch (e) { console.error("Bad draft json", e); }
         }
     }, [sponsor]);
@@ -54,7 +56,7 @@ const SponsorModal = ({ sponsor, onClose, onUpdate, authorizedUsers = [], curren
         setLoading(true);
         try {
             const data = await generateSponsorEmail(sponsor.id);
-            setEmailData(data);
+            setPitchKit(data);
             onUpdate(sponsor.id, { status: 'PITCHED', email_draft: JSON.stringify(data) });
         } catch (error) {
             console.error("Failed to generate", error);
@@ -62,6 +64,12 @@ const SponsorModal = ({ sponsor, onClose, onUpdate, authorizedUsers = [], curren
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     return (
@@ -98,7 +106,7 @@ const SponsorModal = ({ sponsor, onClose, onUpdate, authorizedUsers = [], curren
                             onClick={() => setActiveTab(tab)}
                             className={`p-4 text-[11px] font-black uppercase tracking-widest transition-all relative ${activeTab === tab ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
                         >
-                            {tab === 'details' ? 'Corporate Profile' : 'Partnership Pitch'}
+                            {tab === 'details' ? 'Corporate Profile' : 'Partnership Pitch Kit'}
                             {activeTab === tab && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />}
                         </button>
                     ))}
@@ -184,34 +192,19 @@ const SponsorModal = ({ sponsor, onClose, onUpdate, authorizedUsers = [], curren
                                         ))}
                                     </div>
                                 </div>
-
-                                <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-6">
-                                    <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <User size={12} /> Assigned Negotiator
-                                    </h4>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-emerald-600 flex items-center justify-center font-black text-white border border-white/10">
-                                            {sponsor.assigned_to ? sponsor.assigned_to[0].toUpperCase() : '?'}
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-black text-white uppercase tracking-tight">{sponsor.assigned_to || "Unassigned"}</p>
-                                            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Campaign Lead</p>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[400px]">
-                            {!emailData ? (
+                        <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[400px] w-full">
+                            {!pitchKit ? (
                                 <div className="text-center space-y-6">
                                     <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.1)]">
                                         <Sparkles className="text-emerald-400" size={32} />
                                     </div>
                                     <div className="space-y-2">
-                                        <h3 className="text-xl font-black text-white uppercase tracking-tighter">Draft Partnership Proposal</h3>
+                                        <h3 className="text-xl font-black text-white uppercase tracking-tighter">Strategic Outreach Kit</h3>
                                         <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                                            Our corporate AI will draft a customized pitch highlighting the strategic alignment between TEDxXLRI and {sponsor.company_name}.
+                                            Our corporate AI will draft a multi-format pitch kit: Cold Email, InMail, and an ROI-driven One-Pager.
                                         </p>
                                     </div>
                                     <button
@@ -219,31 +212,52 @@ const SponsorModal = ({ sponsor, onClose, onUpdate, authorizedUsers = [], curren
                                         disabled={loading}
                                         className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
                                     >
-                                        {loading ? 'Synthesizing Pitch...' : '✨ Generate Proposal Draft'}
+                                        {loading ? 'Analyzing Business Alignment...' : '✨ Generate Partnership Kit'}
                                     </button>
                                 </div>
                             ) : (
                                 <div className="w-full space-y-6">
-                                    <div className="flex justify-between items-center bg-white/5 border border-white/5 rounded-2xl p-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-emerald-600/20 p-3 rounded-xl border border-emerald-500/30">
-                                                <Mail className="text-emerald-400" size={24} />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Target Subject</p>
-                                                <h4 className="text-lg font-bold text-white leading-tight">{emailData.subject}</h4>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => window.open(`mailto:${formData.email}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body_html.replace(/<[^>]*>?/gm, ''))}`)}
-                                            className="px-6 py-2 bg-white text-black rounded-xl text-[10px] font-black uppercase transition-all hover:scale-105 active:scale-95"
-                                        >
-                                            Send Now
-                                        </button>
+                                    <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 w-fit mx-auto">
+                                        {[
+                                            { id: 'email', label: '📧 Partnership Email', icon: <Mail size={12} /> },
+                                            { id: 'one_pager', label: '📊 ROI One-Pager', icon: <TrendingUp size={12} /> },
+                                            { id: 'inmail', label: '💬 LinkedIn InMail', icon: <Linkedin size={12} /> }
+                                        ].map(f => (
+                                            <button
+                                                key={f.id}
+                                                onClick={() => setPitchFormat(f.id)}
+                                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${pitchFormat === f.id ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                                            >
+                                                {f.icon} {f.label}
+                                            </button>
+                                        ))}
                                     </div>
 
-                                    <div className="bg-white p-8 rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-                                        <div className="prose prose-sm prose-invert max-w-none text-gray-800" dangerouslySetInnerHTML={{ __html: emailData.body_html }} />
+                                    <div className="bg-white p-8 rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-h-[400px]">
+                                        <div className="flex justify-between items-start mb-6 border-b border-gray-100 pb-4">
+                                            <div>
+                                                <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">
+                                                    {pitchFormat === 'email' ? 'Draft Subject' : pitchFormat === 'one_pager' ? 'Strategic Document' : 'Platform Specific'}
+                                                </h4>
+                                                <p className="text-sm font-bold text-gray-900">
+                                                    {pitchFormat === 'email' ? pitchKit.email.subject : pitchFormat === 'one_pager' ? pitchKit.one_pager.title : 'Direct Networking Message'}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleCopy(pitchFormat === 'email' ? pitchKit.email.body_html : pitchFormat === 'one_pager' ? pitchKit.one_pager.body_html : pitchKit.inmail.body)}
+                                                className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase flex items-center gap-2 hover:bg-emerald-100 transition-all border border-emerald-100"
+                                            >
+                                                {copied ? 'COPIED' : 'COPY ALL'}
+                                            </button>
+                                        </div>
+
+                                        <div className="prose prose-sm max-w-none text-gray-800 font-medium">
+                                            {pitchFormat === 'inmail' ? (
+                                                <pre className="whitespace-pre-wrap font-sans text-sm">{pitchKit.inmail.body}</pre>
+                                            ) : (
+                                                <div dangerouslySetInnerHTML={{ __html: pitchFormat === 'email' ? pitchKit.email.body_html : pitchKit.one_pager.body_html }} />
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}

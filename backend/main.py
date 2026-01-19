@@ -758,17 +758,23 @@ def generate_sponsor_email(
         "Content-Type": "application/json"
     }
 
-    prompt = f"""Write a professional sponsorship pitch for TEDxXLRI 2026.
+    prompt = f"""Create a Strategic Partnership Kit for:
 Company: {sponsor.company_name}
 Industry: {sponsor.industry}
-Partnership Tier Interests: {sponsor.partnership_tier or 'General'}
+Target Tier: {sponsor.partnership_tier or 'Premium Partner'}
 
-The email should highlight the theme 'Blurring Lines' and how {sponsor.company_name} fits this vision.
-Output ONLY a JSON object with:
+Theme: 'Blurring Lines' (TEDxXLRI 2026)
+
+Generate three distinct outreach assets in a single JSON:
+1. "email": A professional partnership pitch (HTML).
+2. "inmail": A concise, high-impact LinkedIn message focused on networking.
+3. "one_pager": A value-proposition summary (HTML) highlighting ROI, Brand Visibility, and Direct Audience Access.
+
+Output ONLY a JSON object with this structure:
 {{
-  "subject": "Strategic Partnership Proposal: {sponsor.company_name} x TEDxXLRI",
-  "preview": "Brief snippet...",
-  "body_html": "Professional HTML email body..."
+  "email": {{ "subject": "...", "body_html": "..." }},
+  "inmail": {{ "body": "..." }},
+  "one_pager": {{ "title": "Strategic Value Summary", "body_html": "..." }}
 }}"""
 
     payload = {
@@ -787,13 +793,13 @@ Output ONLY a JSON object with:
         # Robust JSON extraction
         start = content.find('{')
         end = content.rfind('}') + 1
-        email_data = json.loads(content[start:end])
+        kit_data = json.loads(content[start:end])
         
-        sponsor.email_draft = json.dumps(email_data)
+        sponsor.email_draft = json.dumps(kit_data)
         sponsor.status = SponsorStatus.PITCHED
         session.add(sponsor)
         session.commit()
         
-        return email_data
+        return kit_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
