@@ -59,3 +59,30 @@ export const getLogs = async () => {
     const response = await axios.get(`${API_URL}/logs`, { headers: getAuthHeader() });
     return response.data;
 };
+
+// Task Assignment APIs
+export const assignSpeaker = async (speakerId, assignedTo) => {
+    const response = await axios.post(
+        `${API_URL}/speakers/${speakerId}/assign?assigned_to=${assignedTo}`,
+        {},
+        { headers: getAuthHeader() }
+    );
+    return response.data;
+};
+
+export const unassignSpeaker = async (speakerId) => {
+    const response = await axios.post(
+        `${API_URL}/speakers/${speakerId}/unassign`,
+        {},
+        { headers: getAuthHeader() }
+    );
+    return response.data;
+};
+
+export const getAuthorizedUsers = async () => {
+    const response = await axios.get(
+        `${API_URL}/admin/users`,
+        { headers: getAuthHeader() }
+    );
+    return response.data;
+};

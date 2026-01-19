@@ -34,6 +34,19 @@ class Speaker(SQLModel, table=True):
     email_draft: Optional[str] = Field(default=None) # Store HTML draft
     last_updated: datetime = Field(default_factory=datetime.now)
     is_bounty: bool = Field(default=False) # Admin flag for High Value
+    
+    # Task Assignment & Ownership
+    assigned_to: Optional[str] = None  # Roll number of assigned user
+    assigned_by: Optional[str] = None  # Who assigned it
+    assigned_at: Optional[datetime] = None
+    
+    # Task Management
+    priority: Optional[str] = Field(default="MEDIUM")  # LOW, MEDIUM, HIGH, URGENT
+    due_date: Optional[datetime] = None
+    tags: Optional[str] = None  # Comma-separated tags
+    
+    # Activity Tracking
+    last_activity: Optional[datetime] = Field(default_factory=datetime.now)
 
 class SpeakerUpdate(SQLModel):
     email: Optional[str] = None
@@ -48,6 +61,10 @@ class SpeakerUpdate(SQLModel):
     is_bounty: Optional[bool] = None
     linkedin_url: Optional[str] = None
     search_details: Optional[str] = None
+    assigned_to: Optional[str] = None
+    priority: Optional[str] = None
+    due_date: Optional[datetime] = None
+    tags: Optional[str] = None
 
 class AuditLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
