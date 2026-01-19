@@ -13,6 +13,15 @@ class OutreachStatus(str, Enum):
     IN_TALKS = "IN_TALKS"         # Discussion
     LOCKED = "LOCKED"             # Confirmed
 
+class SponsorStatus(str, Enum):
+    PROSPECT = "PROSPECT"
+    CONTACTED = "CONTACTED"
+    PITCHED = "PITCHED"
+    NEGOTIATING = "NEGOTIATING"
+    SIGNED = "SIGNED"
+    ONBOARDED = "ONBOARDED"
+    REJECTED = "REJECTED"
+
 class Speaker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     batch: Optional[str] = None
@@ -65,6 +74,48 @@ class SpeakerUpdate(SQLModel):
     priority: Optional[str] = None
     due_date: Optional[datetime] = None
     tags: Optional[str] = None
+
+class Sponsor(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    company_name: str = Field(index=True)
+    industry: Optional[str] = None
+    contact_person: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    
+    # Financials / Tiers
+    target_amount: Optional[float] = None
+    actual_amount: Optional[float] = None
+    partnership_tier: Optional[str] = None # Title, Platinum, Gold, Silver, Associate
+    
+    # Tracking
+    status: SponsorStatus = Field(default=SponsorStatus.PROSPECT)
+    notes: Optional[str] = None
+    assigned_to: Optional[str] = None # Roll number
+    assigned_by: Optional[str] = None 
+    assigned_at: Optional[datetime] = None
+    
+    # AI / Outreach
+    email_draft: Optional[str] = None
+    last_updated: datetime = Field(default_factory=datetime.now)
+
+class SponsorUpdate(SQLModel):
+    company_name: Optional[str] = None
+    industry: Optional[str] = None
+    contact_person: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    target_amount: Optional[float] = None
+    actual_amount: Optional[float] = None
+    partnership_tier: Optional[str] = None
+    status: Optional[SponsorStatus] = None
+    notes: Optional[str] = None
+    assigned_to: Optional[str] = None
+    email_draft: Optional[str] = None
 
 class BulkUpdate(SQLModel):
     ids: List[int]

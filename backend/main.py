@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Response, Header
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate, BulkUpdate
+from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate, BulkUpdate, Sponsor, SponsorUpdate, SponsorStatus
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -118,6 +118,23 @@ async def lifespan(app: FastAPI):
                 session.add(user)
             session.commit()
             print("Authorized users initialized.")
+
+        # Seed Sponsors if empty
+        if session.exec(select(Sponsor)).first() is None:
+            print("🌱 Seeding initial sponsors...")
+            sponsors = [
+                Sponsor(company_name="Google India", industry="Tech", partnership_tier="Platinum", target_amount=1500000, status=SponsorStatus.PROSPECT),
+                Sponsor(company_name="Tata Motors", industry="Automotive", partnership_tier="Title", target_amount=2500000, status=SponsorStatus.PROSPECT),
+                Sponsor(company_name="Red Bull", industry="Beverage", partnership_tier="Platinum", target_amount=1200000, status=SponsorStatus.CONTACTED),
+                Sponsor(company_name="Zomato", industry="FoodTech", partnership_tier="Gold", target_amount=800000, status=SponsorStatus.NEGOTIATING),
+                Sponsor(company_name="Unacademy", industry="EdTech", partnership_tier="Gold", target_amount=1000000, status=SponsorStatus.PITCHED),
+                Sponsor(company_name="HDFC Bank", industry="Banking", partnership_tier="Gold", target_amount=1500000, status=SponsorStatus.PROSPECT),
+                Sponsor(company_name="Adobe", industry="Software", partnership_tier="Platinum", target_amount=1200000, status=SponsorStatus.PROSPECT),
+            ]
+            for s in sponsors:
+                session.add(s)
+            session.commit()
+            print("✅ Sponsors seeded.")
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -673,3 +690,110 @@ def get_speaker_logs(
     """Get history for a specific speaker"""
     query = select(AuditLog).where(AuditLog.speaker_id == speaker_id).order_by(AuditLog.timestamp.desc())
     return session.exec(query).all()
+@app.get("/sponsors", response_model=List[Sponsor])
+def get_sponsors(
+    session: Session = Depends(get_session),
+    assigned_to_me: bool = Query(False),
+    status: Optional[str] = None
+):
+    statement = select(Sponsor)
+    if status:
+        statement = statement.where(Sponsor.status == status)
+    results = session.exec(statement).all()
+    return results
+
+@app.post("/sponsors", response_model=Sponsor)
+def create_sponsor(sponsor: Sponsor, session: Session = Depends(get_session)):
+    session.add(sponsor)
+    session.commit()
+    session.refresh(sponsor)
+    return sponsor
+
+@app.patch("/sponsors/{sponsor_id}", response_model=Sponsor)
+def update_sponsor(
+    sponsor_id: int, 
+    sponsor_update: SponsorUpdate, 
+    session: Session = Depends(get_session),
+    user_name: str = Depends(get_current_user_name)
+):
+    db_sponsor = session.get(Sponsor, sponsor_id)
+    if not db_sponsor:
+        raise HTTPException(status_code=404, detail="Sponsor not found")
+    
+    update_data = sponsor_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_sponsor, key, value)
+    
+    db_sponsor.last_updated = func.now()
+    session.add(db_sponsor)
+    session.commit()
+    session.refresh(db_sponsor)
+    return db_sponsor
+
+@app.delete("/sponsors/{sponsor_id}")
+def delete_sponsor(sponsor_id: int, session: Session = Depends(get_session)):
+    db_sponsor = session.get(Sponsor, sponsor_id)
+    if not db_sponsor:
+        raise HTTPException(status_code=404, detail="Sponsor not found")
+    session.delete(db_sponsor)
+    session.commit()
+    return {"message": "Sponsor deleted"}
+
+@app.post("/generate-sponsor-email")
+def generate_sponsor_email(
+    sponsor_id: int, 
+    session: Session = Depends(get_session)
+):
+    sponsor = session.get(Sponsor, sponsor_id)
+    if not sponsor:
+        raise HTTPException(status_code=404, detail="Sponsor not found")
+
+    api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Perplexity API key not configured")
+
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    prompt = f"""Write a professional sponsorship pitch for TEDxXLRI 2026.
+Company: {sponsor.company_name}
+Industry: {sponsor.industry}
+Partnership Tier Interests: {sponsor.partnership_tier or 'General'}
+
+The email should highlight the theme 'Blurring Lines' and how {sponsor.company_name} fits this vision.
+Output ONLY a JSON object with:
+{{
+  "subject": "Strategic Partnership Proposal: {sponsor.company_name} x TEDxXLRI",
+  "preview": "Brief snippet...",
+  "body_html": "Professional HTML email body..."
+}}"""
+
+    payload = {
+        "model": "llama-3-sonar-small-32k-online",
+        "messages": [
+            {"role": "system", "content": "You are a professional corporate relations head for TEDxXLRI."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+        
+        # Robust JSON extraction
+        start = content.find('{')
+        end = content.rfind('}') + 1
+        email_data = json.loads(content[start:end])
+        
+        sponsor.email_draft = json.dumps(email_data)
+        sponsor.status = SponsorStatus.PITCHED
+        session.add(sponsor)
+        session.commit()
+        
+        return email_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

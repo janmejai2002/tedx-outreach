@@ -100,3 +100,27 @@ export const bulkUpdateSpeakers = async (data) => {
     const response = await axios.patch(`${API_URL}/speakers/bulk`, data, { headers: getAuthHeader() });
     return response.data;
 };
+
+// Sponsor APIs
+export const getSponsors = async (params = {}) => {
+    const response = await axios.get(`${API_URL}/sponsors`, {
+        params,
+        headers: getAuthHeader()
+    });
+    return response.data;
+};
+
+export const createSponsor = async (data) => {
+    const response = await axios.post(`${API_URL}/sponsors`, data, { headers: getAuthHeader() });
+    return response.data;
+};
+
+export const updateSponsor = async (id, data) => {
+    const response = await axios.patch(`${API_URL}/sponsors/${id}`, data, { headers: getAuthHeader() });
+    return response.data;
+};
+
+export const generateSponsorEmail = async (id) => {
+    const response = await axios.post(`${API_URL}/generate-sponsor-email?sponsor_id=${id}`, {}, { headers: getAuthHeader() });
+    return response.data;
+};

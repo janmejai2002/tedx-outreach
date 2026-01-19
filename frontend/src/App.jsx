@@ -1,10 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Board from './components/Board';
+import SponsorBoard from './components/SponsorBoard';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function App() {
+  const [mode, setMode] = useState('speaker'); // 'speaker' | 'sponsor'
+
   useEffect(() => {
     // Keep-alive pinger for Render Free Tier
     const pingBackend = async () => {
@@ -16,15 +19,16 @@ function App() {
       }
     };
 
-    // Ping every 10 minutes (Render sleeps at 15 mins)
     const interval = setInterval(pingBackend, 600000);
-    pingBackend(); // Initial ping
+    pingBackend();
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <Board />
+    mode === 'speaker' ?
+      <Board onSwitchMode={() => setMode('sponsor')} /> :
+      <SponsorBoard onSwitchMode={() => setMode('speaker')} />
   );
 }
 

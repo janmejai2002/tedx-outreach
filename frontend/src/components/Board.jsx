@@ -51,7 +51,7 @@ const getBadge = (xp) => {
     return { name: 'Rookie', icon: '👶', color: 'text-gray-500' };
 };
 
-const Board = () => {
+const Board = ({ onSwitchMode }) => {
     const [speakers, setSpeakers] = useState([]);
     const [filteredSpeakers, setFilteredSpeakers] = useState([]);
     const [activeId, setActiveId] = useState(null);
@@ -514,6 +514,13 @@ const Board = () => {
                         </h1>
                         <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase opacity-70">Outreach Terminal</p>
                     </div>
+
+                    <button
+                        onClick={onSwitchMode}
+                        className="ml-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-all flex items-center gap-2 border border-white/5"
+                    >
+                        <ArrowLeftRight size={10} /> Switch to Sponsors
+                    </button>
                 </div>
 
                 {/* Center: Search & Primary Actions */}
