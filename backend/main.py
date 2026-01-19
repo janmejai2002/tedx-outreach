@@ -66,7 +66,7 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # Must be False when using wildcard origins
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]
@@ -219,7 +219,7 @@ def generate_email(
     """
 
     payload = {
-        "model": "sonar",
+        "model": "sonar-pro",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant that writes perfect JSON email drafts."},
             {"role": "user", "content": prompt}
@@ -282,7 +282,7 @@ def refine_email(
     """
 
     payload = {
-        "model": "sonar",
+        "model": "sonar-pro",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant that edits JSON email drafts."},
             {"role": "user", "content": prompt}
