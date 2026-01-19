@@ -30,7 +30,8 @@ class RefineRequest(BaseModel):
 def auto_migrate():
     """Adds missing columns automatically to avoid startup crashes on Render/Production"""
     print("🔄 Running auto-migrations...")
-    with Session(engine) as session:
+    from sqlalchemy import text
+    with engine.connect() as conn:
         # Speaker Table Migrations
         speaker_columns = [
             ("assigned_to", "ALTER TABLE speaker ADD COLUMN assigned_to VARCHAR"),
@@ -44,28 +45,25 @@ def auto_migrate():
         
         for col, sql in speaker_columns:
             try:
-                session.exec(text(sql))
-                session.commit()
+                conn.execute(text(sql))
+                conn.commit()
                 print(f"  ✓ Added {col} to speaker")
             except Exception as e:
-                session.rollback()
+                # Silently ignore if column already exists
                 if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
-                    pass
-                else:
-                    print(f"  ⚠ Error adding {col}: {e}")
+                    continue
+                print(f"  ⚠ Note on {col}: {e}")
 
         # AuditLog Table Migrations
         try:
-            # PostgreSQL syntax
             if "postgresql" in str(engine.url):
-                session.exec(text("ALTER TABLE auditlog ADD COLUMN IF NOT EXISTS speaker_id INTEGER"))
+                # Postgres IF NOT EXISTS is safer
+                conn.execute(text("ALTER TABLE auditlog ADD COLUMN IF NOT EXISTS speaker_id INTEGER"))
             else:
-                # SQLite syntax
-                session.exec(text("ALTER TABLE auditlog ADD COLUMN speaker_id INTEGER"))
-            session.commit()
-            print("  ✓ Added speaker_id to auditlog")
+                conn.execute(text("ALTER TABLE auditlog ADD COLUMN speaker_id INTEGER"))
+            conn.commit()
+            print("  ✓ Checked speaker_id in auditlog")
         except Exception as e:
-            session.rollback()
             if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
                 pass
             else:

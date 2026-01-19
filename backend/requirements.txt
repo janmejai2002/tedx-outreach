@@ -6,7 +6,4 @@ python-dotenv
 requests
 python-multipart
 psycopg2-binary
-pyjwt
 python-jose[cryptography]
-passlib[bcrypt]
-pyyaml
