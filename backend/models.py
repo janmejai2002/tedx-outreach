@@ -71,6 +71,7 @@ class AuditLog(SQLModel, table=True):
     user_name: str
     action: str
     details: str
+    speaker_id: Optional[int] = Field(default=None, index=True)
     timestamp: datetime = Field(default_factory=datetime.now)
 
 class AuthorizedUser(SQLModel, table=True):

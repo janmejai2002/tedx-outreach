@@ -59,6 +59,11 @@ export const getLogs = async () => {
     return response.data;
 };
 
+export const getSpeakerLogs = async (speakerId) => {
+    const response = await axios.get(`${API_URL}/speakers/${speakerId}/logs`, { headers: getAuthHeader() });
+    return response.data;
+};
+
 // Task Assignment APIs
 export const assignSpeaker = async (speakerId, assignedTo) => {
     const response = await axios.post(

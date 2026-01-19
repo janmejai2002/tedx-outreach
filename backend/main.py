@@ -135,7 +135,8 @@ def assign_speaker(
     log = AuditLog(
         user_name=user["username"],
         action="ASSIGN_SPEAKER",
-        details=f"Assigned {speaker.name} to {assignee.name}"
+        details=f"Assigned {speaker.name} to {assignee.name}",
+        speaker_id=speaker_id
     )
     session.add(log)
     session.commit()
@@ -166,7 +167,8 @@ def unassign_speaker(
     log = AuditLog(
         user_name=user["username"],
         action="UNASSIGN_SPEAKER",
-        details=f"Unassigned {speaker.name}"
+        details=f"Unassigned {speaker.name}",
+        speaker_id=speaker_id
     )
     session.add(log)
     session.commit()
@@ -309,7 +311,8 @@ def create_speaker(
         log = AuditLog(
             user_name=user_name,
             action="ADD",
-            details=f"Added speaker {speaker.name} to {speaker.status.value}"
+            details=f"Added speaker {speaker.name} to {speaker.status.value}",
+            speaker_id=speaker.id
         )
         session.add(log)
         session.commit()
@@ -359,7 +362,8 @@ def update_speaker(
         log = AuditLog(
             user_name=user_name,
             action=action,
-            details=details
+            details=details,
+            speaker_id=speaker_id
         )
         session.add(log)
     
@@ -399,7 +403,7 @@ def generate_email(
     Speaker Context:
     - Name: {speaker.name}
     - Field/Domain: {speaker.primary_domain}
-    - The "Blurring Line" Angle: {speaker.blurring_line_angle or 'Their unique ability to bridge disparate fields'}
+    - The "Blurring Lines" Angle: {speaker.blurring_line_angle or 'Their unique ability to bridge disparate fields'}
     
     Event Context:
     - Event: TEDxXLRI 2026
@@ -533,4 +537,14 @@ def read_logs(
     user: dict = Depends(verify_token)
 ):
     query = select(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit)
+    return session.exec(query).all()
+
+@app.get("/speakers/{speaker_id}/logs", response_model=List[AuditLog])
+def get_speaker_logs(
+    speaker_id: int,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Get history for a specific speaker"""
+    query = select(AuditLog).where(AuditLog.speaker_id == speaker_id).order_by(AuditLog.timestamp.desc())
     return session.exec(query).all()

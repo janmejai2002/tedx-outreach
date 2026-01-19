@@ -16,6 +16,7 @@ import OutreachModal from './OutreachModal';
 import AddSpeakerModal from './AddSpeakerModal';
 import LoginModal from './LoginModal';
 import GuideModal from './GuideModal';
+import AdminPanel from './AdminPanel';
 import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
@@ -148,6 +149,7 @@ const Board = () => {
 
     // Achievement Notification State
     const [latestAchievement, setLatestAchievement] = useState(null);
+    const [showAdminPanel, setShowAdminPanel] = useState(false);
 
     const toggleSelection = (id) => {
         const newSet = new Set(selectedIds);
@@ -617,6 +619,16 @@ const Board = () => {
                             )}
                         </button>
 
+                        {currentUser?.isAdmin && (
+                            <button
+                                onClick={() => setShowAdminPanel(true)}
+                                className="h-9 w-9 flex items-center justify-center bg-white/5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 border border-white/5 rounded-xl transition-all"
+                                title="Admin Panel"
+                            >
+                                <Shield size={16} />
+                            </button>
+                        )}
+
                         <div
                             onClick={handleLogout}
                             className="relative group cursor-pointer"
@@ -691,6 +703,13 @@ const Board = () => {
                     onUpdate={handleSpeakerUpdate}
                     currentUser={currentUser}
                     authorizedUsers={authorizedUsers}
+                />
+            )}
+
+            {showAdminPanel && (
+                <AdminPanel
+                    onClose={() => setShowAdminPanel(false)}
+                    speakers={speakers}
                 />
             )}
 

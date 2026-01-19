@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail } from '../api';
+import { getSpeakerLogs, assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail } from '../api';
 
 const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], currentUser = null }) => {
     const [assigning, setAssigning] = useState(false);
@@ -11,6 +11,8 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
     const [chatInput, setChatInput] = useState("");
     const [refining, setRefining] = useState(false);
     const [isDraftEditing, setIsDraftEditing] = useState(false);
+    const [history, setHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -32,7 +34,23 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                 setEmailData(JSON.parse(speaker.email_draft));
             } catch (e) { console.error("Bad draft json", e); }
         }
+
+        if (speaker.id) {
+            fetchHistory();
+        }
     }, [speaker]);
+
+    const fetchHistory = async () => {
+        setLoadingHistory(true);
+        try {
+            const logs = await getSpeakerLogs(speaker.id);
+            setHistory(logs);
+        } catch (e) {
+            console.error("Failed to fetch speaker logs", e);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
 
     const handleGenerate = async () => {
         setLoading(true);
@@ -177,6 +195,13 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                     >
                         Ghostwriter AI
                         {activeTab === 'outreach' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('history')}
+                        className={`flex-1 p-3 text-sm font-medium transition-colors relative ${activeTab === 'history' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        Activity Timeline
+                        {activeTab === 'history' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
                     </button>
                 </div>
 
@@ -371,6 +396,47 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                                 )}
                             </div>
                         </div>
+                    ) : activeTab === 'history' ? (
+                        <div className="max-w-2xl mx-auto space-y-6">
+                            <h3 className="text-lg font-bold text-white mb-4">Lead History</h3>
+                            {loadingHistory ? (
+                                <div className="text-center py-12 text-gray-500 animate-pulse uppercase tracking-widest text-xs font-black">
+                                    Reconstructing timeline...
+                                </div>
+                            ) : history.length === 0 ? (
+                                <div className="text-center py-12 text-gray-700 bg-white/5 border border-dashed border-white/5 rounded-2xl">
+                                    <Activity size={32} className="mx-auto mb-3 opacity-20" />
+                                    <p className="text-sm">No activity recorded for this lead yet.</p>
+                                </div>
+                            ) : (
+                                <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-red-600/50 before:via-white/5 before:to-transparent">
+                                    {history.map((log, idx) => (
+                                        <div key={log.id} className="relative flex items-start gap-6 group">
+                                            <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center z-10 shadow-lg ${idx === 0 ? 'bg-red-600 text-white shadow-red-900/40 scale-110' : 'bg-[#151515] text-gray-500 border border-white/10'}`}>
+                                                {log.action === 'ASSIGN_SPEAKER' ? <Users size={16} /> :
+                                                    log.action === 'MOVE' ? <TrendingUp size={16} /> :
+                                                        <Activity size={16} />}
+                                            </div>
+                                            <div className="flex-1 pt-1 pb-4 border-b border-white/[0.03]">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <h4 className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors">
+                                                        {log.details}
+                                                    </h4>
+                                                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">
+                                                        {new Date(log.timestamp + "Z").toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                                    <span className="text-red-500/70">Performed by</span>
+                                                    <span className="bg-white/5 text-gray-400 px-1.5 rounded">{log.user_name}</span>
+                                                    <span className="text-gray-700 ml-auto">{new Date(log.timestamp + "Z").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <div className="h-full flex gap-6">
                             {/* Left Column: Chat & Controls */}
@@ -543,8 +609,8 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                         </div>
                     )}
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 };
 
