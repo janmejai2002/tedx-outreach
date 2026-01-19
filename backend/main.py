@@ -28,57 +28,54 @@ class RefineRequest(BaseModel):
     instruction: str
 
 def auto_migrate():
-    """Adds missing columns automatically to avoid startup crashes on Render/Production"""
+    """Adds missing columns automatically with robust transaction handling for Render/Postgres"""
     print("🔄 Running auto-migrations...")
     from sqlalchemy import text
-    with engine.connect() as conn:
-        # Speaker Table Migrations
-        speaker_columns = [
-            ("assigned_to", "ALTER TABLE speaker ADD COLUMN assigned_to VARCHAR"),
-            ("assigned_by", "ALTER TABLE speaker ADD COLUMN assigned_by VARCHAR"),
-            ("assigned_at", "ALTER TABLE speaker ADD COLUMN assigned_at TIMESTAMP"),
-            ("priority", "ALTER TABLE speaker ADD COLUMN priority VARCHAR DEFAULT 'MEDIUM'"),
-            ("due_date", "ALTER TABLE speaker ADD COLUMN due_date TIMESTAMP"),
-            ("tags", "ALTER TABLE speaker ADD COLUMN tags VARCHAR"),
-            ("last_activity", "ALTER TABLE speaker ADD COLUMN last_activity TIMESTAMP")
-        ]
-        
-        for col, sql in speaker_columns:
+    
+    def run_step(sql, label):
+        # Use a fresh connection for each step to prevent transaction abortion from spreading
+        with engine.connect() as conn:
             try:
                 conn.execute(text(sql))
                 conn.commit()
-                print(f"  ✓ Added {col} to speaker")
+                print(f"  ✓ {label}")
             except Exception as e:
-                # Silently ignore if column already exists
-                if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
-                    continue
-                print(f"  ⚠ Note on {col}: {e}")
+                # Ignore "already exists" errors
+                err_str = str(e).lower()
+                if "already exists" in err_str or "duplicate column" in err_str:
+                    return
+                print(f"  ⚠ Note on {label}: {e}")
 
-        # AuditLog Table Migrations
-        try:
-            if "postgresql" in str(engine.url):
-                # Postgres IF NOT EXISTS is safer
-                conn.execute(text("ALTER TABLE auditlog ADD COLUMN IF NOT EXISTS speaker_id INTEGER"))
-            else:
-                conn.execute(text("ALTER TABLE auditlog ADD COLUMN speaker_id INTEGER"))
-            conn.commit()
-            print("  ✓ Checked speaker_id in auditlog")
-        except Exception as e:
-            if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
-                pass
-            else:
-                print(f"  ⚠ Error adding speaker_id to auditlog: {e}")
+    is_postgres = "postgresql" in str(engine.url)
+    
+    # Speaker Table
+    speaker_cols = [
+        ("assigned_to", "VARCHAR"),
+        ("assigned_by", "VARCHAR"),
+        ("assigned_at", "TIMESTAMP"),
+        ("priority", "VARCHAR DEFAULT 'MEDIUM'"),
+        ("due_date", "TIMESTAMP"),
+        ("tags", "VARCHAR"),
+        ("last_activity", "TIMESTAMP")
+    ]
+    
+    for col, col_type in speaker_cols:
+        if is_postgres:
+            run_step(f"ALTER TABLE speaker ADD COLUMN IF NOT EXISTS {col} {col_type}", f"Add {col} to speaker")
+        else:
+            run_step(f"ALTER TABLE speaker ADD COLUMN {col} {col_type}", f"Add {col} to speaker")
 
-        # AuthorizedUser Table Migrations
-        try:
-            conn.execute(text("ALTER TABLE authorizeduser ADD COLUMN role VARCHAR DEFAULT 'SPEAKER_OUTREACH'"))
-            conn.commit()
-            print("  ✓ Added role to authorizeduser")
-        except Exception as e:
-            if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
-                pass
-            else:
-                print(f"  ⚠ Error adding role to authorizeduser: {e}")
+    # AuditLog Table
+    if is_postgres:
+        run_step("ALTER TABLE auditlog ADD COLUMN IF NOT EXISTS speaker_id INTEGER", "Add speaker_id to auditlog")
+    else:
+        run_step("ALTER TABLE auditlog ADD COLUMN speaker_id INTEGER", "Add speaker_id to auditlog")
+
+    # AuthorizedUser Table
+    if is_postgres:
+        run_step("ALTER TABLE authorizeduser ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'SPEAKER_OUTREACH'", "Add role to authorizeduser")
+    else:
+        run_step("ALTER TABLE authorizeduser ADD COLUMN role VARCHAR DEFAULT 'SPEAKER_OUTREACH'", "Add role to authorizeduser")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
