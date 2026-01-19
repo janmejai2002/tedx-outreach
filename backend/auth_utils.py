@@ -2,28 +2,11 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# Authorised users list synced from frontend
-AUTHORIZED_USERS = {
-    "b25380": "Abhishek Tiwari",
-    "b25474": "Sarah Dhamija",
-    "b25305": "Isha Manilal Solanki",
-    "b25327": "Faria Choudhry",
-    "v25017": "Manojna Eadala",
-    "b25434": "Sanjeet Shrivastava",
-    "b25470": "Lavanya Krishan Sharma",
-    "b25392": "Shauryadeep Lall",
-    "b25347": "Chaitanya Sharma",
-    "b25328": "Kishlay Kishore",
-    "b25440": "Yashas Tarakaram",
-    "b25316": "Saraswat Majumder",
-    "b25472": "Pratik Gandhi",
-    "b25416": "Suyog Sachin Shah",
-    "b25359": "Harshit Kumar",
-    "b25349": "Janmejai(Admin)"
-}
+# Admin roll number (hardcoded for bootstrap)
+ADMIN_ROLL = "b25349"
 
 # JWT Config
 SECRET_KEY = os.getenv("SECRET_KEY", "tedx_xlri_super_secret_key_2025")
@@ -45,11 +28,18 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         roll_number: str = payload.get("roll")
+        is_admin: bool = payload.get("is_admin", False)
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        return {"username": username, "roll_number": roll_number}
+        return {"username": username, "roll_number": roll_number, "is_admin": is_admin}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 def get_current_user_name(token_data: dict = Security(verify_token)):
     return token_data["username"]
+
+def verify_admin(token_data: dict = Depends(verify_token)):
+    """Verify that the current user is an admin"""
+    if not token_data.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return token_data

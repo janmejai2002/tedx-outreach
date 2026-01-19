@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Response, Header
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog
+from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from typing import List, Optional
@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load from local .env
 load_dotenv('/etc/secrets/.env')  # Load from Render Secret Files if exists
 
-from auth_utils import create_access_token, verify_token, AUTHORIZED_USERS, get_current_user_name
+from auth_utils import create_access_token, verify_token, verify_admin, get_current_user_name, ADMIN_ROLL
 
 class LoginRequest(BaseModel):
     roll_number: str
@@ -88,18 +88,29 @@ def debug_env(user: dict = Depends(verify_token)):
     }
 
 @app.post("/login")
-def login(request: LoginRequest):
+def login(request: LoginRequest, session: Session = Depends(get_session)):
     roll = request.roll_number.lower().strip()
-    if roll in AUTHORIZED_USERS:
-        user_name = AUTHORIZED_USERS[roll]
-        access_token = create_access_token(data={"sub": user_name, "roll": roll})
-        return {
-            "access_token": access_token, 
-            "token_type": "bearer",
-            "user_name": user_name,
-            "roll_number": roll
-        }
-    raise HTTPException(status_code=401, detail="Invalid roll number")
+    
+    # Check if user is authorized in database
+    user = session.exec(select(AuthorizedUser).where(AuthorizedUser.roll_number == roll)).first()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized. Contact admin to get access.")
+    
+    # Create token with admin flag
+    access_token = create_access_token(data={
+        "sub": user.name, 
+        "roll": roll,
+        "is_admin": user.is_admin
+    })
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user_name": user.name,
+        "roll_number": roll,
+        "is_admin": user.is_admin
+    }
 
 @app.get("/speakers", response_model=List[Speaker])
 def read_speakers(

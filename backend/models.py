@@ -56,3 +56,15 @@ class AuditLog(SQLModel, table=True):
     details: str
     timestamp: datetime = Field(default_factory=datetime.now)
 
+class AuthorizedUser(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    roll_number: str = Field(index=True, unique=True)
+    name: str
+    is_admin: bool = Field(default=False)
+    added_by: Optional[str] = None
+    added_at: datetime = Field(default_factory=datetime.now)
+
+class AuthorizedUserCreate(SQLModel):
+    roll_number: str
+    name: str
+    is_admin: bool = False
