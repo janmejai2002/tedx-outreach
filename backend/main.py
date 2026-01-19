@@ -225,8 +225,10 @@ def generate_email(
     try:
         response = requests.post(url, json=payload, headers=headers)
         if not response.ok:
-            print(f"API Error Details: {response.text}")
-        response.raise_for_status()
+            error_detail = f"Perplexity API Error: {response.status_code} - {response.text}"
+            print(error_detail)
+            raise HTTPException(status_code=500, detail=error_detail)
+        
         result = response.json()
         content = result['choices'][0]['message']['content']
         
@@ -241,13 +243,14 @@ def generate_email(
         session.commit()
         
         return email_data
+    except json.JSONDecodeError as e:
+        error_msg = f"Failed to parse AI response as JSON: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
-        print(f"AI Error: {e}")
-        return {
-            "subject": f"Invitation: TEDxXLRI x {speaker.name}", 
-            "body_text": f"Error generating email: {e}",
-            "body_html": f"<p>Error generating email: {e}</p>"
-        }
+        error_msg = f"AI Generation Error: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @app.post("/refine-email")
 def refine_email(

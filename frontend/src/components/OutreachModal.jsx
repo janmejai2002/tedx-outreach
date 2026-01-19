@@ -42,6 +42,8 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
             onUpdate(speaker.id, { status: 'DRAFTED', email_draft: JSON.stringify(data) });
         } catch (error) {
             console.error("Failed to generate", error);
+            const errorMsg = error.response?.data?.detail || error.message || "Unknown error occurred";
+            alert(`Ghostwriter AI Error: ${errorMsg}\n\nPlease check:\n1. Backend is running\n2. PERPLEXITY_API_KEY is set in .env\n3. Speaker has required fields filled`);
         } finally {
             setLoading(false);
         }
