@@ -76,6 +76,16 @@ app.add_middleware(
 def health_check():
     return {"status": "healthy"}
 
+@app.get("/debug/env")
+def debug_env(user: dict = Depends(verify_token)):
+    """Debug endpoint to check if environment variables are loaded"""
+    api_key = os.getenv('PERPLEXITY_API_KEY')
+    return {
+        "perplexity_key_loaded": bool(api_key),
+        "key_length": len(api_key) if api_key else 0,
+        "key_prefix": api_key[:10] + "..." if api_key else "NOT_SET"
+    }
+
 @app.post("/login")
 def login(request: LoginRequest):
     roll = request.roll_number.lower().strip()
@@ -189,10 +199,18 @@ def generate_email(
     if not speaker:
         raise HTTPException(status_code=404, detail="Speaker not found")
 
+    # Check if API key is loaded
+    api_key = os.getenv('PERPLEXITY_API_KEY')
+    if not api_key:
+        raise HTTPException(
+            status_code=500, 
+            detail="PERPLEXITY_API_KEY not found in environment variables. Please set it in Render's Environment Variables or Secret Files."
+        )
+
     # Real AI Generation via Perplexity
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
-        "Authorization": f"Bearer {os.getenv('PERPLEXITY_API_KEY')}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     
@@ -217,6 +235,14 @@ def generate_email(
     
     Output Format: No talk, no markdown blocks. Just raw JSON.
     """
+
+    # Check if API key is loaded
+    api_key = os.getenv('PERPLEXITY_API_KEY')
+    if not api_key:
+        raise HTTPException(
+            status_code=500, 
+            detail="PERPLEXITY_API_KEY not found in environment variables. Please set it in Render's Environment Variables or Secret Files."
+        )
 
     payload = {
         "model": "sonar",
