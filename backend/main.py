@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Response, Header
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate
+from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate, BulkUpdate
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -431,6 +431,51 @@ def update_speaker(
     session.refresh(db_speaker)
     return db_speaker
 
+@app.patch("/speakers/bulk")
+def bulk_update_speakers(
+    update_data: BulkUpdate,
+    session: Session = Depends(get_session),
+    user_name: str = Depends(get_current_user_name)
+):
+    """Update multiple speakers at once"""
+    count = 0
+    for speaker_id in update_data.ids:
+        db_speaker = session.get(Speaker, speaker_id)
+        if not db_speaker:
+            continue
+            
+        modified = False
+        if update_data.status:
+            db_speaker.status = update_data.status
+            modified = True
+        if update_data.assigned_to is not None:
+            db_speaker.assigned_to = update_data.assigned_to
+            db_speaker.assigned_by = user_name
+            db_speaker.assigned_at = func.now()
+            modified = True
+        if update_data.is_bounty is not None:
+            db_speaker.is_bounty = update_data.is_bounty
+            modified = True
+            
+        if modified:
+            db_speaker.last_updated = func.now()
+            session.add(db_speaker)
+            count += 1
+            
+    session.commit()
+    
+    # Log the bulk action
+    if count > 0:
+        log = AuditLog(
+            user_name=user_name,
+            action="BULK_UPDATE",
+            details=f"Updated {count} speakers (IDs: {update_data.ids[:5]}...)"
+        )
+        session.add(log)
+        session.commit()
+        
+    return {"message": f"Successfully updated {count} speakers", "count": count}
+
 @app.post("/generate-email")
 def generate_email(
     speaker_id: int, 
@@ -441,15 +486,13 @@ def generate_email(
     if not speaker:
         raise HTTPException(status_code=404, detail="Speaker not found")
 
-    # Check if API key is loaded
     api_key = os.getenv('PERPLEXITY_API_KEY')
     if not api_key:
         raise HTTPException(
             status_code=500, 
-            detail="PERPLEXITY_API_KEY not found in environment variables. Please set it in Render's Environment Variables or Secret Files."
+            detail="PERPLEXITY_API_KEY missing. Please set it in Render environment variables."
         )
 
-    # Real AI Generation via Perplexity
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -458,7 +501,7 @@ def generate_email(
     
     prompt = f"""
     Write a world-class, highly personalized email invitation for a prospective TEDx speaker.
-    THE MISSION: Convince {speaker.name} ({speaker.designation or 'Expert in ' + speaker.primary_domain}) that they are the essential missing piece for our upcoming event.
+    THE MISSION: Convince {speaker.name} (Expert in {speaker.primary_domain}) that they are the essential missing piece for our upcoming event.
 
     Speaker Context:
     - Name: {speaker.name}
@@ -468,7 +511,7 @@ def generate_email(
     Event Context:
     - Event: TEDxXLRI 2026
     - Theme: "Blurring Lines"
-    = Date: 20th February 2026
+    - Date: 20th February 2026
     - Theme Philosophy: We are exploring the intersections where rigid boundaries dissolve—between technology and art, logic and emotion, tradition and innovation.
     
     Return explicitly JSON with these keys:
@@ -478,14 +521,6 @@ def generate_email(
     
     Output Format: No talk, no markdown blocks. Just raw JSON.
     """
-
-    # Check if API key is loaded
-    api_key = os.getenv('PERPLEXITY_API_KEY')
-    if not api_key:
-        raise HTTPException(
-            status_code=500, 
-            detail="PERPLEXITY_API_KEY not found in environment variables. Please set it in Render's Environment Variables or Secret Files."
-        )
 
     payload = {
         "model": "sonar",
@@ -499,15 +534,24 @@ def generate_email(
         response = requests.post(url, json=payload, headers=headers)
         if not response.ok:
             error_detail = f"Perplexity API Error: {response.status_code} - {response.text}"
-            print(error_detail)
             raise HTTPException(status_code=500, detail=error_detail)
         
         result = response.json()
         content = result['choices'][0]['message']['content']
         
-        # Clean up optional markdown blocks if present
-        clean_content = content.replace('```json', '').replace('```', '').strip()
-        email_data = json.loads(clean_content)
+        # More robust JSON extraction
+        try:
+            start = content.find('{')
+            end = content.rfind('}') + 1
+            if start != -1 and end != 0:
+                clean_content = content[start:end]
+            else:
+                clean_content = content
+            
+            email_data = json.loads(clean_content)
+        except:
+            clean_content = content.replace('```json', '').replace('```', '').strip()
+            email_data = json.loads(clean_content)
         
         # Save draft to DB
         speaker.email_draft = json.dumps(email_data)
@@ -516,14 +560,34 @@ def generate_email(
         session.commit()
         
         return email_data
-    except json.JSONDecodeError as e:
-        error_msg = f"Failed to parse AI response as JSON: {str(e)}"
-        print(error_msg)
-        raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
         error_msg = f"AI Generation Error: {str(e)}"
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
+
+@app.get("/speakers/{speaker_id}/ai-prompt")
+def get_ai_prompt(speaker_id: int, session: Session = Depends(get_session)):
+    """Returns a pre-configured prompt that users can copy-paste into ChatGPT/Gemini"""
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+        
+    prompt = f"""Write a professional TEDx speaker invitation for:
+Name: {speaker.name}
+Domain: {speaker.primary_domain}
+Angle: {speaker.blurring_line_angle}
+
+Event: TEDxXLRI 2026
+Theme: Blurring Lines
+Date: 20th Feb 2026
+
+Requirements:
+1. Personalized bridge between their work and the 'Blurring Lines' theme.
+2. Formatted with <h1> for title and <p> for body.
+3. TED Colors (Red/White/Black).
+4. Tone: Intellectual, inviting, and high-prestige."""
+
+    return {"prompt": prompt}
 
 @app.post("/refine-email")
 def refine_email(

@@ -5,13 +5,16 @@ import {
     Trash2, ExternalLink, Download, Send, Smartphone,
     User, Sparkles, X, Activity, Users, TrendingUp
 } from 'lucide-react';
-import { getSpeakerLogs, assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail } from '../api';
+import { getSpeakerLogs, assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail, getAiPrompt } from '../api';
+import { Copy, Check } from 'lucide-react';
 
 const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], currentUser = null }) => {
     const [assigning, setAssigning] = useState(false);
     const [loading, setLoading] = useState(false);
     const [emailData, setEmailData] = useState(null);
     const [activeTab, setActiveTab] = useState('details'); // details | outreach
+    const [aiPrompt, setAiPrompt] = useState(null);
+    const [copiedPrompt, setCopiedPrompt] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [chatInput, setChatInput] = useState("");
     const [refining, setRefining] = useState(false);
@@ -145,6 +148,21 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
         } finally {
             setAssigning(false);
         }
+    };
+
+    const handleGetPrompt = async () => {
+        try {
+            const data = await getAiPrompt(speaker.id);
+            setAiPrompt(data.prompt);
+        } catch (error) {
+            console.error("Failed to get prompt", error);
+        }
+    };
+
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text);
+        setCopiedPrompt(true);
+        setTimeout(() => setCopiedPrompt(false), 2000);
     };
 
     return (
@@ -462,6 +480,29 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                                         >
                                             {loading ? 'Thinking...' : '✨ Generate HTML Draft'}
                                         </button>
+
+                                        {!aiPrompt ? (
+                                            <button
+                                                onClick={handleGetPrompt}
+                                                className="text-[10px] text-gray-500 hover:text-white uppercase font-black tracking-widest transition-colors flex items-center gap-1.5"
+                                            >
+                                                <Copy size={12} /> Get Manual AI Prompt
+                                            </button>
+                                        ) : (
+                                            <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl text-left w-full max-w-sm">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase">External Tool Prompt</span>
+                                                    <button
+                                                        onClick={() => copyToClipboard(aiPrompt)}
+                                                        className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all flex items-center gap-1 text-[10px]"
+                                                    >
+                                                        {copiedPrompt ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                                                        {copiedPrompt ? 'COPIED' : 'COPY'}
+                                                    </button>
+                                                </div>
+                                                <p className="text-[10px] text-gray-400 font-mono leading-relaxed line-clamp-4">{aiPrompt}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <>

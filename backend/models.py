@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from sqlmodel import Field, SQLModel
 from datetime import datetime
 from enum import Enum
@@ -65,6 +65,12 @@ class SpeakerUpdate(SQLModel):
     priority: Optional[str] = None
     due_date: Optional[datetime] = None
     tags: Optional[str] = None
+
+class BulkUpdate(SQLModel):
+    ids: List[int]
+    status: Optional[OutreachStatus] = None
+    assigned_to: Optional[str] = None
+    is_bounty: Optional[bool] = None
 
 class AuditLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

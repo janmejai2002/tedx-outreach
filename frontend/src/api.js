@@ -90,3 +90,13 @@ export const getAuthorizedUsers = async () => {
     );
     return response.data;
 };
+
+export const getAiPrompt = async (id) => {
+    const response = await axios.get(`${API_URL}/speakers/${id}/ai-prompt`, { headers: getAuthHeader() });
+    return response.data;
+};
+
+export const bulkUpdateSpeakers = async (data) => {
+    const response = await axios.patch(`${API_URL}/speakers/bulk`, data, { headers: getAuthHeader() });
+    return response.data;
+};

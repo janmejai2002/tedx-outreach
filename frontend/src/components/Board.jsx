@@ -20,7 +20,7 @@ import AdminPanel from './AdminPanel';
 import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
-import { getSpeakers, updateSpeaker, exportSpeakers, getLogs } from '../api';
+import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers } from '../api';
 import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -368,6 +368,22 @@ const Board = () => {
             if (e.response?.status === 401) {
                 handleLogout();
             }
+        }
+    };
+
+    const handleBulkUpdate = async (updates) => {
+        try {
+            await bulkUpdateSpeakers({
+                ids: Array.from(selectedIds),
+                ...updates
+            });
+            await fetchSpeakers();
+            setSelectedIds(new Set());
+            setIsSelectMode(false);
+            confetti({ particleCount: 30, spread: 50, origin: { y: 0.9 } });
+        } catch (error) {
+            console.error("Bulk update failed", error);
+            alert("Failed to perform bulk update");
         }
     };
 
@@ -847,36 +863,50 @@ const Board = () => {
             <AnimatePresence>
                 {isSelectMode && selectedIds.size > 0 && (
                     <motion.div
-                        initial={{ y: 100 }}
-                        animate={{ y: 0 }}
-                        exit={{ y: 100 }}
-                        className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-white/10 rounded-full px-6 py-3 shadow-2xl z-50 flex items-center gap-6"
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[80] bg-black/95 border border-white/10 rounded-2xl shadow-2xl p-4 flex items-center gap-6 backdrop-blur-xl"
                     >
-                        <span className="text-sm font-bold text-white">{selectedIds.size} Selected</span>
-                        <div className="h-6 w-px bg-white/20" />
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{selectedIds.size} Selected</span>
+                            <span className="text-[8px] text-gray-500 font-bold uppercase">Multi-Action Deployment</span>
+                        </div>
 
-                        <div className="flex items-center gap-2">
-                            <select
-                                onChange={(e) => handleBulkStatusChange(e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded px-3 py-1 text-sm text-gray-300 focus:outline-none focus:border-red-500 hover:bg-white/10 transition-colors"
+                        <div className="h-8 w-px bg-white/10" />
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleBulkUpdate({ assigned_to: currentUser.roll })}
+                                className="h-9 px-4 bg-white/5 hover:bg-white text-gray-400 hover:text-black rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
                             >
-                                <option value="">Move to...</option>
-                                <option value="SCOUTED">Scouted</option>
-                                <option value="EMAIL_ADDED">Email Added</option>
-                                <option value="RESEARCHED">Researched</option>
-                                <option value="DRAFTED">Drafted</option>
-                                <option value="CONTACT_INITIATED">Contact Sent</option>
-                                <option value="CONNECTED">Connected</option>
-                                <option value="IN_TALKS">In Talks</option>
-                                <option value="LOCKED">Locked</option>
+                                <Users size={12} /> Assign To Me
+                            </button>
+                            <button
+                                onClick={() => handleBulkUpdate({ is_bounty: true })}
+                                className="h-9 px-4 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-red-500/20"
+                            >
+                                <Target size={12} /> Mark Bounty
+                            </button>
+                            <select
+                                onChange={(e) => e.target.value && handleBulkUpdate({ status: e.target.value })}
+                                className="h-9 px-4 bg-white/5 border border-white/5 hover:border-white/20 rounded-xl text-[10px] font-black uppercase text-gray-400 focus:outline-none transition-all cursor-pointer"
+                            >
+                                <option value="">Change Status...</option>
+                                {Object.entries(SECTIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
                         </div>
 
+                        <div className="h-8 w-px bg-white/10" />
+
                         <button
-                            onClick={() => setSelectedIds(new Set())}
-                            className="text-xs text-gray-500 hover:text-white underline"
+                            onClick={() => {
+                                setIsSelectMode(false);
+                                setSelectedIds(new Set());
+                            }}
+                            className="p-2 text-gray-600 hover:text-white transition-colors"
                         >
-                            Clear
+                            <X size={18} />
                         </button>
                     </motion.div>
                 )}
