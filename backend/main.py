@@ -63,6 +63,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # CORS Setup - Allow all origins for production
+# Version: 2026-01-19 - CORS Fixed for Render
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
