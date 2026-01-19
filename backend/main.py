@@ -12,9 +12,12 @@ import os
 import io
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from auth_utils import create_access_token, verify_token, AUTHORIZED_USERS, get_current_user_name
 
-load_dotenv()
+# Load environment variables from .env file (local) or /etc/secrets/.env (Render)
+load_dotenv()  # Load from local .env
+load_dotenv('/etc/secrets/.env')  # Load from Render Secret Files if exists
+
+from auth_utils import create_access_token, verify_token, AUTHORIZED_USERS, get_current_user_name
 
 class LoginRequest(BaseModel):
     roll_number: str
