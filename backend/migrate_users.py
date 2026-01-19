@@ -8,7 +8,7 @@ from models import AuthorizedUser
 import os
 
 # Database URL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///tedx.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 

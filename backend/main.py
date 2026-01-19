@@ -58,6 +58,22 @@ async def lifespan(app: FastAPI):
                 print("Import completed.")
             except Exception as e:
                 print(f"Error importing CSV: {e}")
+        
+        # Initialize Authorized Users if empty
+        user_check = session.exec(select(AuthorizedUser)).first()
+        if not user_check:
+            print("Initializing authorized users...")
+            from migrate_users import INITIAL_USERS
+            for roll, (name, is_admin) in INITIAL_USERS.items():
+                user = AuthorizedUser(
+                    roll_number=roll,
+                    name=name,
+                    is_admin=is_admin,
+                    added_by="system"
+                )
+                session.add(user)
+            session.commit()
+            print("Authorized users initialized.")
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -408,6 +424,7 @@ def generate_email(
     Event Context:
     - Event: TEDxXLRI 2026
     - Theme: "Blurring Lines"
+    = Date: 20th February 2026
     - Theme Philosophy: We are exploring the intersections where rigid boundaries dissolve—between technology and art, logic and emotion, tradition and innovation.
     
     Return explicitly JSON with these keys:
