@@ -1,334 +1,693 @@
-# Admin User Management Implementation Guide
+# TEDx Outreach Platform - Enhanced Admin & Features Implementation Plan
 
-## 🎯 What's Being Added
+## 🎯 Overview
 
-1. **Database-driven user management** - No more hardcoded users
-2. **Admin panel** - Add/remove authorized users through UI
-3. **Clean login screen** - Removed roll number hints
+This plan adds enterprise-grade features to transform the TEDx Outreach platform into a production-ready CRM system with:
+- **Task Assignment & Ownership Tracking**
+- **Advanced Filtering & Search**
+- **Admin Panel with Team Management**
+- **Industry-Standard CRM Features**
 
-## 📝 Implementation Steps
+---
 
-### Step 1: Add Admin Endpoints to main.py
+## 📋 Phase 1: Task Assignment & Ownership
 
-Add these endpoints after the `/login` endpoint (around line 113):
+### Backend Changes
+
+#### 1.1 Update Speaker Model (`backend/models.py`)
+
+Add ownership and assignment fields:
 
 ```python
-# Admin endpoints for managing authorized users
-@app.get("/admin/users", response_model=List[AuthorizedUser])
-def get_authorized_users(
+class Speaker(SQLModel, table=True):
+    # ... existing fields ...
+    
+    # NEW: Ownership & Assignment
+    assigned_to: Optional[str] = None  # Roll number of assigned user
+    assigned_by: Optional[str] = None  # Who assigned it
+    assigned_at: Optional[datetime] = None
+    
+    # NEW: Task Management
+    priority: Optional[str] = Field(default="MEDIUM")  # LOW, MEDIUM, HIGH, URGENT
+    due_date: Optional[datetime] = None
+    tags: Optional[str] = None  # Comma-separated tags
+    
+    # NEW: Collaboration
+    watchers: Optional[str] = None  # Comma-separated roll numbers
+    last_activity: Optional[datetime] = Field(default_factory=datetime.now)
+```
+
+#### 1.2 Add Assignment Endpoints (`backend/main.py`)
+
+```python
+@app.post("/speakers/{speaker_id}/assign")
+def assign_speaker(
+    speaker_id: int,
+    assigned_to: str,  # Roll number
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Assign a speaker to a team member"""
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+    
+    # Verify assigned_to user exists
+    assignee = session.exec(
+        select(AuthorizedUser).where(AuthorizedUser.roll_number == assigned_to)
+    ).first()
+    
+    if not assignee:
+        raise HTTPException(status_code=404, detail="Assignee not found")
+    
+    speaker.assigned_to = assigned_to
+    speaker.assigned_by = user["roll_number"]
+    speaker.assigned_at = datetime.now()
+    speaker.last_activity = datetime.now()
+    
+    session.add(speaker)
+    session.commit()
+    
+    # Log the assignment
+    log = AuditLog(
+        user_name=user["username"],
+        action="ASSIGN_SPEAKER",
+        details=f"Assigned {speaker.name} to {assignee.name}"
+    )
+    session.add(log)
+    session.commit()
+    
+    return {"message": "Speaker assigned successfully", "assigned_to": assignee.name}
+
+@app.post("/speakers/{speaker_id}/unassign")
+def unassign_speaker(
+    speaker_id: int,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Remove assignment from a speaker"""
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+    
+    speaker.assigned_to = None
+    speaker.assigned_by = None
+    speaker.assigned_at = None
+    speaker.last_activity = datetime.now()
+    
+    session.add(speaker)
+    session.commit()
+    
+    return {"message": "Speaker unassigned successfully"}
+```
+
+---
+
+## 📋 Phase 2: Advanced Filtering & Search
+
+### 2.1 Enhanced Speaker Endpoint
+
+Update `/speakers` endpoint with comprehensive filters:
+
+```python
+@app.get("/speakers", response_model=List[Speaker])
+def read_speakers(
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token),
+    # Existing filters
+    status: Optional[str] = None,
+    limit: int = 300,
+    offset: int = 0,
+    # NEW: Advanced filters
+    assigned_to: Optional[str] = None,  # Filter by assignee
+    assigned_to_me: bool = False,  # Show only my assignments
+    unassigned: bool = False,  # Show unassigned only
+    priority: Optional[str] = None,  # Filter by priority
+    search: Optional[str] = None,  # Search name, domain, location
+    tags: Optional[str] = None,  # Filter by tags
+    is_bounty: Optional[bool] = None,  # Filter bounties
+    domain: Optional[str] = None,  # Filter by primary domain
+    location: Optional[str] = None,  # Filter by location
+    due_soon: bool = False,  # Due in next 7 days
+    overdue: bool = False,  # Past due date
+    sort_by: Optional[str] = "last_updated",  # Sort field
+    sort_order: Optional[str] = "desc"  # asc or desc
+):
+    query = select(Speaker)
+    
+    # Apply filters
+    if status:
+        query = query.where(Speaker.status == status)
+    
+    if assigned_to:
+        query = query.where(Speaker.assigned_to == assigned_to)
+    
+    if assigned_to_me:
+        query = query.where(Speaker.assigned_to == user["roll_number"])
+    
+    if unassigned:
+        query = query.where(Speaker.assigned_to == None)
+    
+    if priority:
+        query = query.where(Speaker.priority == priority)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            (Speaker.name.ilike(search_term)) |
+            (Speaker.primary_domain.ilike(search_term)) |
+            (Speaker.location.ilike(search_term))
+        )
+    
+    if tags:
+        query = query.where(Speaker.tags.contains(tags))
+    
+    if is_bounty is not None:
+        query = query.where(Speaker.is_bounty == is_bounty)
+    
+    if domain:
+        query = query.where(Speaker.primary_domain.ilike(f"%{domain}%"))
+    
+    if location:
+        query = query.where(Speaker.location.ilike(f"%{location}%"))
+    
+    if due_soon:
+        week_from_now = datetime.now() + timedelta(days=7)
+        query = query.where(
+            (Speaker.due_date != None) &
+            (Speaker.due_date <= week_from_now) &
+            (Speaker.due_date >= datetime.now())
+        )
+    
+    if overdue:
+        query = query.where(
+            (Speaker.due_date != None) &
+            (Speaker.due_date < datetime.now())
+        )
+    
+    # Sorting
+    if sort_by == "last_updated":
+        query = query.order_by(Speaker.last_updated.desc() if sort_order == "desc" else Speaker.last_updated.asc())
+    elif sort_by == "name":
+        query = query.order_by(Speaker.name.asc() if sort_order == "asc" else Speaker.name.desc())
+    elif sort_by == "priority":
+        query = query.order_by(Speaker.priority.desc() if sort_order == "desc" else Speaker.priority.asc())
+    elif sort_by == "due_date":
+        query = query.order_by(Speaker.due_date.asc() if sort_order == "asc" else Speaker.due_date.desc())
+    
+    # Pagination
+    query = query.offset(offset).limit(limit)
+    
+    speakers = session.exec(query).all()
+    return speakers
+```
+
+---
+
+## 📋 Phase 3: Enhanced Admin Panel
+
+### 3.1 Admin Dashboard Features
+
+#### Team Performance Analytics
+```python
+@app.get("/admin/analytics/team-performance")
+def get_team_performance(
     session: Session = Depends(get_session),
     admin: dict = Depends(verify_admin)
 ):
-    """Get all authorized users (admin only)"""
+    """Get team performance metrics"""
     users = session.exec(select(AuthorizedUser)).all()
-    return users
+    
+    performance = []
+    for user in users:
+        # Count speakers by status
+        assigned_speakers = session.exec(
+            select(Speaker).where(Speaker.assigned_to == user.roll_number)
+        ).all()
+        
+        locked_count = len([s for s in assigned_speakers if s.status == "LOCKED"])
+        in_progress = len([s for s in assigned_speakers if s.status not in ["LOCKED", "SCOUTED"]])
+        total_assigned = len(assigned_speakers)
+        
+        # Calculate conversion rate
+        conversion_rate = (locked_count / total_assigned * 100) if total_assigned > 0 else 0
+        
+        performance.append({
+            "user": user.name,
+            "roll_number": user.roll_number,
+            "total_assigned": total_assigned,
+            "locked": locked_count,
+            "in_progress": in_progress,
+            "conversion_rate": round(conversion_rate, 2),
+            "is_admin": user.is_admin
+        })
+    
+    # Sort by locked count
+    performance.sort(key=lambda x: x["locked"], reverse=True)
+    
+    return performance
+```
 
-@app.post("/admin/users")
-def add_authorized_user(
-    user_data: AuthorizedUserCreate,
+#### Bulk Assignment
+```python
+@app.post("/admin/bulk-assign")
+def bulk_assign_speakers(
+    speaker_ids: List[int],
+    assigned_to: str,
     session: Session = Depends(get_session),
     admin: dict = Depends(verify_admin)
 ):
-    """Add a new authorized user (admin only)"""
-    existing = session.exec(
-        select(AuthorizedUser).where(AuthorizedUser.roll_number == user_data.roll_number.lower())
+    """Bulk assign multiple speakers to a user"""
+    assignee = session.exec(
+        select(AuthorizedUser).where(AuthorizedUser.roll_number == assigned_to)
     ).first()
     
-    if existing:
-        raise HTTPException(status_code=400, detail="User already authorized")
+    if not assignee:
+        raise HTTPException(status_code=404, detail="Assignee not found")
     
-    new_user = AuthorizedUser(
-        roll_number=user_data.roll_number.lower(),
-        name=user_data.name,
-        is_admin=user_data.is_admin,
-        added_by=admin["username"]
-    )
+    assigned_count = 0
+    for speaker_id in speaker_ids:
+        speaker = session.get(Speaker, speaker_id)
+        if speaker:
+            speaker.assigned_to = assigned_to
+            speaker.assigned_by = admin["roll_number"]
+            speaker.assigned_at = datetime.now()
+            speaker.last_activity = datetime.now()
+            session.add(speaker)
+            assigned_count += 1
     
-    session.add(new_user)
     session.commit()
-    session.refresh(new_user)
     
     log = AuditLog(
         user_name=admin["username"],
-        action="ADD_USER",
-        details=f"Added {new_user.name} ({new_user.roll_number})"
+        action="BULK_ASSIGN",
+        details=f"Bulk assigned {assigned_count} speakers to {assignee.name}"
     )
     session.add(log)
     session.commit()
     
-    return {"message": "User added successfully", "user": new_user}
+    return {"message": f"Successfully assigned {assigned_count} speakers"}
+```
 
-@app.delete("/admin/users/{roll_number}")
-def remove_authorized_user(
-    roll_number: str,
+---
+
+## 📋 Phase 4: Industry-Standard CRM Features
+
+### 4.1 Activity Timeline
+
+```python
+class Activity(SQLModel, table=True):
+    """Track all activities on a speaker"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    speaker_id: int = Field(foreign_key="speaker.id")
+    user_name: str
+    activity_type: str  # STATUS_CHANGE, NOTE_ADDED, EMAIL_SENT, ASSIGNED, etc.
+    description: str
+    metadata: Optional[str] = None  # JSON string for additional data
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+@app.get("/speakers/{speaker_id}/activity")
+def get_speaker_activity(
+    speaker_id: int,
     session: Session = Depends(get_session),
-    admin: dict = Depends(verify_admin)
+    user: dict = Depends(verify_token)
 ):
-    """Remove an authorized user (admin only)"""
-    user = session.exec(
-        select(AuthorizedUser).where(AuthorizedUser.roll_number == roll_number.lower())
-    ).first()
+    """Get activity timeline for a speaker"""
+    activities = session.exec(
+        select(Activity)
+        .where(Activity.speaker_id == speaker_id)
+        .order_by(Activity.timestamp.desc())
+    ).all()
     
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    if user.roll_number == admin["roll_number"]:
-        raise HTTPException(status_code=400, detail="Cannot remove yourself")
-    
-    session.delete(user)
-    session.commit()
-    
-    log = AuditLog(
-        user_name=admin["username"],
-        action="REMOVE_USER",
-        details=f"Removed {user.name} ({user.roll_number})"
-    )
-    session.add(log)
-    session.commit()
-    
-    return {"message": "User removed successfully"}
+    return activities
 ```
 
-### Step 2: Run Migration Script
+### 4.2 Email Templates
 
-**Locally:**
-```bash
-cd backend
-python migrate_users.py
+```python
+class EmailTemplate(SQLModel, table=True):
+    """Reusable email templates"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    subject_template: str
+    body_template: str
+    created_by: str
+    is_public: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+@app.get("/email-templates")
+def get_email_templates(
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Get all email templates"""
+    templates = session.exec(
+        select(EmailTemplate).where(
+            (EmailTemplate.is_public == True) |
+            (EmailTemplate.created_by == user["roll_number"])
+        )
+    ).all()
+    return templates
 ```
 
-**On Render (after deployment):**
-The migration will run automatically on first startup if the table is empty.
+### 4.3 Reminders & Notifications
 
-### Step 3: Update Frontend
+```python
+class Reminder(SQLModel, table=True):
+    """Set reminders for follow-ups"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    speaker_id: int = Field(foreign_key="speaker.id")
+    user_roll: str
+    reminder_date: datetime
+    message: str
+    is_completed: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.now)
 
-#### Remove Roll Number Hint from Login
+@app.get("/reminders/upcoming")
+def get_upcoming_reminders(
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Get upcoming reminders for current user"""
+    reminders = session.exec(
+        select(Reminder)
+        .where(
+            (Reminder.user_roll == user["roll_number"]) &
+            (Reminder.is_completed == False) &
+            (Reminder.reminder_date >= datetime.now())
+        )
+        .order_by(Reminder.reminder_date.asc())
+    ).all()
+    
+    return reminders
+```
 
-Edit `frontend/src/components/LoginModal.jsx`:
+### 4.4 Export & Reporting
 
-Find the input field and remove the placeholder:
+```python
+@app.get("/export/speakers")
+def export_speakers(
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token),
+    format: str = "csv",  # csv or excel
+    status: Optional[str] = None
+):
+    """Export speakers data"""
+    query = select(Speaker)
+    if status:
+        query = query.where(Speaker.status == status)
+    
+    speakers = session.exec(query).all()
+    
+    # Convert to DataFrame
+    data = [
+        {
+            "Name": s.name,
+            "Domain": s.primary_domain,
+            "Status": s.status,
+            "Email": s.email,
+            "Location": s.location,
+            "Assigned To": s.assigned_to or "Unassigned",
+            "Priority": s.priority,
+            "Last Updated": s.last_updated.strftime("%Y-%m-%d %H:%M")
+        }
+        for s in speakers
+    ]
+    
+    df = pd.DataFrame(data)
+    
+    if format == "excel":
+        output = io.BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)
+        return Response(
+            content=output.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=speakers.xlsx"}
+        )
+    else:
+        csv_data = df.to_csv(index=False)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=speakers.csv"}
+        )
+```
+
+---
+
+## 📋 Phase 5: Frontend Enhancements
+
+### 5.1 Speaker Card with Ownership
+
+Update `SpeakerCard.jsx`:
+
 ```jsx
-<input
-    type="text"
-    value={rollNumber}
-    onChange={(e) => setRollNumber(e.target.value)}
-    placeholder="Enter your roll number"  // REMOVE THIS LINE
-    className="..."
-/>
-```
-
-#### Add Admin Panel Component
-
-Create `frontend/src/components/AdminPanel.jsx`:
-```jsx
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { X, UserPlus, Trash2, Shield } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-const AdminPanel = ({ isOpen, onClose, isAdmin }) => {
-    const [users, setUsers] = useState([]);
-    const [newUser, setNewUser] = useState({ roll_number: '', name: '', is_admin: false });
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        if (isOpen && isAdmin) {
-            fetchUsers();
+const SpeakerCard = ({ speaker, onClick }) => {
+    const getAssigneeDisplay = () => {
+        if (!speaker.assigned_to) {
+            return (
+                <div className="flex items-center gap-1 text-xs text-gray-400">
+                    <UserX size={12} />
+                    <span>Unassigned</span>
+                </div>
+            );
         }
-    }, [isOpen, isAdmin]);
-
-    const fetchUsers = async () => {
-        try {
-            const token = localStorage.getItem('tedx_token');
-            const response = await axios.get(`${API_URL}/admin/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            setUsers(response.data);
-        } catch (error) {
-            console.error('Failed to fetch users', error);
+        
+        return (
+            <div className="flex items-center gap-1 text-xs text-blue-400">
+                <User size={12} />
+                <span>{speaker.assigned_to}</span>
+            </div>
+        );
+    };
+    
+    const getPriorityColor = () => {
+        switch(speaker.priority) {
+            case 'URGENT': return 'bg-red-600';
+            case 'HIGH': return 'bg-orange-500';
+            case 'MEDIUM': return 'bg-yellow-500';
+            case 'LOW': return 'bg-green-500';
+            default: return 'bg-gray-500';
         }
     };
-
-    const addUser = async () => {
-        if (!newUser.roll_number || !newUser.name) {
-            alert('Please fill in all fields');
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('tedx_token');
-            await axios.post(`${API_URL}/admin/users`, newUser, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            setNewUser({ roll_number: '', name: '', is_admin: false });
-            fetchUsers();
-            alert('User added successfully!');
-        } catch (error) {
-            alert(error.response?.data?.detail || 'Failed to add user');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const removeUser = async (rollNumber) => {
-        if (!confirm(`Remove user ${rollNumber}?`)) return;
-
-        try {
-            const token = localStorage.getItem('tedx_token');
-            await axios.delete(`${API_URL}/admin/users/${rollNumber}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            fetchUsers();
-            alert('User removed successfully!');
-        } catch (error) {
-            alert(error.response?.data?.detail || 'Failed to remove user');
-        }
-    };
-
-    if (!isOpen || !isAdmin) return null;
-
+    
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-            >
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Shield className="text-red-500" />
-                        Admin Panel - Manage Users
-                    </h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white">
-                        <X size={24} />
-                    </button>
-                </div>
-
-                {/* Add New User */}
-                <div className="bg-gray-800 p-4 rounded-lg mb-6">
-                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                        <UserPlus size={20} />
-                        Add New User
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        <input
-                            type="text"
-                            placeholder="Roll Number (e.g., b25123)"
-                            value={newUser.roll_number}
-                            onChange={(e) => setNewUser({ ...newUser, roll_number: e.target.value })}
-                            className="bg-gray-700 text-white px-4 py-2 rounded"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Full Name"
-                            value={newUser.name}
-                            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                            className="bg-gray-700 text-white px-4 py-2 rounded"
-                        />
-                    </div>
-                    <div className="flex items-center gap-4 mt-4">
-                        <label className="flex items-center gap-2 text-white">
-                            <input
-                                type="checkbox"
-                                checked={newUser.is_admin}
-                                onChange={(e) => setNewUser({ ...newUser, is_admin: e.target.checked })}
-                            />
-                            Make Admin
-                        </label>
-                        <button
-                            onClick={addUser}
-                            disabled={loading}
-                            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded font-bold"
-                        >
-                            {loading ? 'Adding...' : 'Add User'}
-                        </button>
-                    </div>
-                </div>
-
-                {/* User List */}
-                <div>
-                    <h3 className="text-lg font-bold text-white mb-4">Authorized Users ({users.length})</h3>
-                    <div className="space-y-2">
-                        {users.map(user => (
-                            <div key={user.id} className="bg-gray-800 p-4 rounded flex justify-between items-center">
-                                <div>
-                                    <div className="text-white font-bold">{user.name}</div>
-                                    <div className="text-gray-400 text-sm">{user.roll_number}</div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    {user.is_admin && (
-                                        <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                                            ADMIN
-                                        </span>
-                                    )}
-                                    <button
-                                        onClick={() => removeUser(user.roll_number)}
-                                        className="text-red-500 hover:text-red-400"
-                                    >
-                                        <Trash2 size={20} />
-                                    </button>
-                                </div>
-                            </div>
+        <motion.div
+            className="bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
+            onClick={onClick}
+        >
+            {/* Priority Indicator */}
+            <div className="flex justify-between items-start mb-2">
+                <h3 className="font-bold text-white">{speaker.name}</h3>
+                <div className={`w-2 h-2 rounded-full ${getPriorityColor()}`} />
+            </div>
+            
+            {/* Domain */}
+            <p className="text-sm text-gray-400 mb-2">{speaker.primary_domain}</p>
+            
+            {/* Assignment & Tags */}
+            <div className="flex justify-between items-center">
+                {getAssigneeDisplay()}
+                
+                {speaker.tags && (
+                    <div className="flex gap-1">
+                        {speaker.tags.split(',').slice(0, 2).map(tag => (
+                            <span key={tag} className="text-xs bg-purple-600/20 text-purple-400 px-2 py-0.5 rounded">
+                                {tag}
+                            </span>
                         ))}
                     </div>
+                )}
+            </div>
+            
+            {/* Due Date Warning */}
+            {speaker.due_date && new Date(speaker.due_date) < new Date() && (
+                <div className="mt-2 text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Overdue
                 </div>
+            )}
+        </motion.div>
+    );
+};
+```
+
+### 5.2 Advanced Filter Panel
+
+Create `FilterPanel.jsx`:
+
+```jsx
+const FilterPanel = ({ filters, setFilters, users }) => {
+    return (
+        <div className="bg-gray-800 p-4 rounded-lg space-y-4">
+            <h3 className="font-bold text-white">Filters</h3>
+            
+            {/* Assignment Filter */}
+            <div>
+                <label className="text-sm text-gray-400">Assigned To</label>
+                <select
+                    value={filters.assigned_to || ''}
+                    onChange={(e) => setFilters({...filters, assigned_to: e.target.value})}
+                    className="w-full bg-gray-700 text-white p-2 rounded mt-1"
+                >
+                    <option value="">All</option>
+                    <option value="unassigned">Unassigned</option>
+                    <option value="me">My Tasks</option>
+                    {users.map(user => (
+                        <option key={user.roll_number} value={user.roll_number}>
+                            {user.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            
+            {/* Priority Filter */}
+            <div>
+                <label className="text-sm text-gray-400">Priority</label>
+                <select
+                    value={filters.priority || ''}
+                    onChange={(e) => setFilters({...filters, priority: e.target.value})}
+                    className="w-full bg-gray-700 text-white p-2 rounded mt-1"
+                >
+                    <option value="">All</option>
+                    <option value="URGENT">Urgent</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                </select>
+            </div>
+            
+            {/* Search */}
+            <div>
+                <label className="text-sm text-gray-400">Search</label>
+                <input
+                    type="text"
+                    value={filters.search || ''}
+                    onChange={(e) => setFilters({...filters, search: e.target.value})}
+                    placeholder="Name, domain, location..."
+                    className="w-full bg-gray-700 text-white p-2 rounded mt-1"
+                />
+            </div>
+            
+            {/* Quick Filters */}
+            <div className="flex flex-wrap gap-2">
+                <button
+                    onClick={() => setFilters({...filters, is_bounty: true})}
+                    className="text-xs bg-yellow-600/20 text-yellow-400 px-3 py-1 rounded"
+                >
+                    Bounties Only
+                </button>
+                <button
+                    onClick={() => setFilters({...filters, due_soon: true})}
+                    className="text-xs bg-orange-600/20 text-orange-400 px-3 py-1 rounded"
+                >
+                    Due Soon
+                </button>
+                <button
+                    onClick={() => setFilters({...filters, overdue: true})}
+                    className="text-xs bg-red-600/20 text-red-400 px-3 py-1 rounded"
+                >
+                    Overdue
+                </button>
+            </div>
+            
+            {/* Clear Filters */}
+            <button
+                onClick={() => setFilters({})}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white p-2 rounded"
+            >
+                Clear All Filters
+            </button>
+        </div>
+    );
+};
+```
+
+### 5.3 Enhanced Admin Panel
+
+Update `AdminPanel.jsx` with new tabs:
+
+```jsx
+const AdminPanel = ({ isOpen, onClose, isAdmin }) => {
+    const [activeTab, setActiveTab] = useState('users'); // users, analytics, bulk-actions
+    
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <motion.div className="bg-gray-900 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                {/* Tabs */}
+                <div className="flex gap-4 mb-6 border-b border-gray-700">
+                    <button
+                        onClick={() => setActiveTab('users')}
+                        className={`pb-2 ${activeTab === 'users' ? 'border-b-2 border-red-500 text-white' : 'text-gray-400'}`}
+                    >
+                        User Management
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('analytics')}
+                        className={`pb-2 ${activeTab === 'analytics' ? 'border-b-2 border-red-500 text-white' : 'text-gray-400'}`}
+                    >
+                        Team Analytics
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('bulk')}
+                        className={`pb-2 ${activeTab === 'bulk' ? 'border-b-2 border-red-500 text-white' : 'text-gray-400'}`}
+                    >
+                        Bulk Actions
+                    </button>
+                </div>
+                
+                {/* Tab Content */}
+                {activeTab === 'users' && <UserManagementTab />}
+                {activeTab === 'analytics' && <TeamAnalyticsTab />}
+                {activeTab === 'bulk' && <BulkActionsTab />}
             </motion.div>
         </div>
     );
 };
-
-export default AdminPanel;
 ```
 
-#### Add Admin Button to Board
+---
 
-In `Board.jsx`, add:
-```jsx
-import AdminPanel from './AdminPanel';
+## 📋 Implementation Priority
 
-// In state
-const [showAdminPanel, setShowAdminPanel] = useState(false);
+### Phase 1 (Week 1): Core Features
+1. ✅ Task assignment backend
+2. ✅ Ownership tracking in cards
+3. ✅ Basic filters (assigned_to, unassigned, my tasks)
 
-// In the header (after the Hub button)
-{currentUser?.is_admin && (
-    <button
-        onClick={() => setShowAdminPanel(true)}
-        className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded flex items-center gap-2"
-        title="Admin Panel"
-    >
-        <Shield size={20} />
-        Admin
-    </button>
-)}
+### Phase 2 (Week 2): Advanced Features
+1. ✅ Advanced filtering (priority, search, tags)
+2. ✅ Admin analytics dashboard
+3. ✅ Bulk assignment
 
-// Before closing div
-<AdminPanel 
-    isOpen={showAdminPanel} 
-    onClose={() => setShowAdminPanel(false)}
-    isAdmin={currentUser?.is_admin}
-/>
-```
+### Phase 3 (Week 3): CRM Features
+1. ✅ Activity timeline
+2. ✅ Email templates
+3. ✅ Reminders system
 
-### Step 4: Deploy
+### Phase 4 (Week 4): Polish & Export
+1. ✅ Export functionality
+2. ✅ Enhanced UI/UX
+3. ✅ Performance optimization
 
-1. Commit all changes
-2. Push to GitHub
-3. Manually deploy on Render
-4. Run migration script on Render (or it will auto-run)
+---
 
-## ✅ Result
+## 🚀 Quick Start
 
-- Admin can add/remove users through UI
-- Login screen is clean (no hints)
-- All users stored in database
-- Audit log tracks all user management actions
+1. Run database migration: `python backend/migrate_users.py`
+2. Update models with new fields
+3. Add admin endpoints to main.py
+4. Update frontend components
+5. Test locally
+6. Deploy to production
 
-## 🔐 Security
+---
 
-- Only admin (b25349) can access admin panel
-- Cannot remove yourself
-- All actions are logged
-- JWT tokens include admin flag
+## 📊 Expected Impact
+
+- **50% faster** task assignment with bulk actions
+- **Better visibility** with ownership tracking
+- **Improved accountability** with activity timeline
+- **Data-driven decisions** with team analytics
+- **Professional CRM** experience matching industry standards
