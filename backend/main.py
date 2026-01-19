@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Query, Response, Header
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
 from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from typing import List, Optional
@@ -26,9 +27,54 @@ class RefineRequest(BaseModel):
     current_draft: str
     instruction: str
 
+def auto_migrate():
+    """Adds missing columns automatically to avoid startup crashes on Render/Production"""
+    print("🔄 Running auto-migrations...")
+    with Session(engine) as session:
+        # Speaker Table Migrations
+        speaker_columns = [
+            ("assigned_to", "ALTER TABLE speaker ADD COLUMN assigned_to VARCHAR"),
+            ("assigned_by", "ALTER TABLE speaker ADD COLUMN assigned_by VARCHAR"),
+            ("assigned_at", "ALTER TABLE speaker ADD COLUMN assigned_at TIMESTAMP"),
+            ("priority", "ALTER TABLE speaker ADD COLUMN priority VARCHAR DEFAULT 'MEDIUM'"),
+            ("due_date", "ALTER TABLE speaker ADD COLUMN due_date TIMESTAMP"),
+            ("tags", "ALTER TABLE speaker ADD COLUMN tags VARCHAR"),
+            ("last_activity", "ALTER TABLE speaker ADD COLUMN last_activity TIMESTAMP")
+        ]
+        
+        for col, sql in speaker_columns:
+            try:
+                session.exec(text(sql))
+                session.commit()
+                print(f"  ✓ Added {col} to speaker")
+            except Exception as e:
+                session.rollback()
+                if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
+                    pass
+                else:
+                    print(f"  ⚠ Error adding {col}: {e}")
+
+        # AuditLog Table Migrations
+        try:
+            # PostgreSQL syntax
+            if "postgresql" in str(engine.url):
+                session.exec(text("ALTER TABLE auditlog ADD COLUMN IF NOT EXISTS speaker_id INTEGER"))
+            else:
+                # SQLite syntax
+                session.exec(text("ALTER TABLE auditlog ADD COLUMN speaker_id INTEGER"))
+            session.commit()
+            print("  ✓ Added speaker_id to auditlog")
+        except Exception as e:
+            session.rollback()
+            if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
+                pass
+            else:
+                print(f"  ⚠ Error adding speaker_id to auditlog: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    auto_migrate()
     # Import CSV if DB is empty
     with Session(engine) as session:
         statement = select(Speaker)
