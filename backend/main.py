@@ -90,20 +90,10 @@ def debug_env(user: dict = Depends(verify_token)):
 @app.post("/login")
 def login(request: LoginRequest, session: Session = Depends(get_session)):
     roll = request.roll_number.lower().strip()
-    
-    # Check if user is authorized in database
     user = session.exec(select(AuthorizedUser).where(AuthorizedUser.roll_number == roll)).first()
-    
     if not user:
-        raise HTTPException(status_code=401, detail="Unauthorized. Contact admin to get access.")
-    
-    # Create token with admin flag
-    access_token = create_access_token(data={
-        "sub": user.name, 
-        "roll": roll,
-        "is_admin": user.is_admin
-    })
-    
+        raise HTTPException(status_code=401, detail="Unauthorized. Contact admin.")
+    access_token = create_access_token(data={"sub": user.name, "roll": roll, "is_admin": user.is_admin})
     return {
         "access_token": access_token, 
         "token_type": "bearer",
@@ -111,6 +101,156 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
         "roll_number": roll,
         "is_admin": user.is_admin
     }
+# Task Assignment Endpoints
+@app.post("/speakers/{speaker_id}/assign")
+def assign_speaker(
+    speaker_id: int,
+    assigned_to: str,  # Roll number
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Assign a speaker to a team member"""
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+    
+    # Verify assigned_to user exists
+    assignee = session.exec(
+        select(AuthorizedUser).where(AuthorizedUser.roll_number == assigned_to)
+    ).first()
+    
+    if not assignee:
+        raise HTTPException(status_code=404, detail="Assignee not found")
+    
+    speaker.assigned_to = assigned_to
+    speaker.assigned_by = user["roll_number"]
+    speaker.assigned_at = datetime.now()
+    speaker.last_activity = datetime.now()
+    speaker.last_updated = datetime.now()
+    
+    session.add(speaker)
+    session.commit()
+    
+    # Log the assignment
+    log = AuditLog(
+        user_name=user["username"],
+        action="ASSIGN_SPEAKER",
+        details=f"Assigned {speaker.name} to {assignee.name}"
+    )
+    session.add(log)
+    session.commit()
+    
+    return {"message": "Speaker assigned successfully", "assigned_to": assignee.name}
+
+@app.post("/speakers/{speaker_id}/unassign")
+def unassign_speaker(
+    speaker_id: int,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Remove assignment from a speaker"""
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+    
+    speaker.assigned_to = None
+    speaker.assigned_by = None
+    speaker.assigned_at = None
+    speaker.last_activity = datetime.now()
+    speaker.last_updated = datetime.now()
+    
+    session.add(speaker)
+    session.commit()
+    
+    # Log the unassignment
+    log = AuditLog(
+        user_name=user["username"],
+        action="UNASSIGN_SPEAKER",
+        details=f"Unassigned {speaker.name}"
+    )
+    session.add(log)
+    session.commit()
+    
+    return {"message": "Speaker unassigned successfully"}
+
+# Admin endpoints for managing authorized users
+@app.get("/admin/users", response_model=List[AuthorizedUser])
+def get_authorized_users(
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Get all authorized users (admin only)"""
+    users = session.exec(select(AuthorizedUser)).all()
+    return users
+
+@app.post("/admin/users")
+def add_authorized_user(
+    user_data: AuthorizedUserCreate,
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Add a new authorized user (admin only)"""
+    # Check if user already exists
+    existing = session.exec(
+        select(AuthorizedUser).where(AuthorizedUser.roll_number == user_data.roll_number.lower().strip())
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="User already authorized")
+    
+    new_user = AuthorizedUser(
+        roll_number=user_data.roll_number.lower().strip(),
+        name=user_data.name,
+        is_admin=user_data.is_admin,
+        added_by=admin["username"]
+    )
+    
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    
+    # Log the action
+    log = AuditLog(
+        user_name=admin["username"],
+        action="ADD_USER",
+        details=f"Added {new_user.name} ({new_user.roll_number})"
+    )
+    session.add(log)
+    session.commit()
+    
+    return {"message": "User added successfully", "user": new_user}
+
+@app.delete("/admin/users/{roll_number}")
+def remove_authorized_user(
+    roll_number: str,
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Remove an authorized user (admin only)"""
+    user = session.exec(
+        select(AuthorizedUser).where(AuthorizedUser.roll_number == roll_number.lower().strip())
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent removing original admin if needed, or at least self
+    if user.roll_number == admin["roll_number"]:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself")
+    
+    session.delete(user)
+    session.commit()
+    
+    # Log the action
+    log = AuditLog(
+        user_name=admin["username"],
+        action="REMOVE_USER",
+        details=f"Removed {user.name} ({user.roll_number})"
+    )
+    session.add(log)
+    session.commit()
+    
+    return {"message": "User removed successfully"}
 
 @app.get("/speakers", response_model=List[Speaker])
 def read_speakers(
@@ -118,11 +258,37 @@ def read_speakers(
     status: Optional[str] = None,
     limit: int = 300,
     offset: int = 0,
-    user: dict = Depends(verify_token)
+    user: dict = Depends(verify_token),
+    # Assignment filters
+    assigned_to: Optional[str] = None,
+    unassigned: bool = False,
+    assigned_to_me: bool = False,
+    search: Optional[str] = None
 ):
     query = select(Speaker)
+    
     if status:
         query = query.where(Speaker.status == status)
+    
+    if assigned_to:
+        query = query.where(Speaker.assigned_to == assigned_to)
+    
+    if unassigned:
+        query = query.where(Speaker.assigned_to == None)
+        
+    if assigned_to_me:
+        query = query.where(Speaker.assigned_to == user["roll_number"])
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            (Speaker.name.ilike(search_term)) |
+            (Speaker.primary_domain.ilike(search_term)) |
+            (Speaker.location.ilike(search_term))
+        )
+    
+    # Order by last update
+    query = query.order_by(Speaker.last_updated.desc())
     
     query = query.offset(offset).limit(limit)
     speakers = session.exec(query).all()

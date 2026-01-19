@@ -54,10 +54,22 @@ const Board = () => {
     const [speakers, setSpeakers] = useState([]);
     const [filteredSpeakers, setFilteredSpeakers] = useState([]);
     const [activeId, setActiveId] = useState(null);
+    const [currentUser, setCurrentUser] = useState(() => {
+        try {
+            const saved = localStorage.getItem('tedx_user_obj');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    });
+
     const [selectedSpeaker, setSelectedSpeaker] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isAdding, setIsAdding] = useState(false);
-    const [currentUser, setCurrentUser] = useState(localStorage.getItem('tedx_user') || null);
+
+    // Assignment & Filtering State
+    const [authorizedUsers, setAuthorizedUsers] = useState([]);
+    const [filterMode, setFilterMode] = useState('ALL'); // ALL, ME, UNASSIGNED
 
     // Gamification State
     const [userXP, setUserXP] = useState(0);
@@ -186,10 +198,23 @@ const Board = () => {
         if (currentUser) {
             fetchSpeakers();
             fetchLogs();
+            if (currentUser.isAdmin) {
+                fetchAuthorizedUsers();
+            }
             const interval = setInterval(fetchLogs, 10000);
             return () => clearInterval(interval);
         }
-    }, [currentUser]);
+    }, [currentUser, filterMode, searchTerm]);
+
+    const fetchAuthorizedUsers = async () => {
+        try {
+            const { getAuthorizedUsers } = await import('../api');
+            const users = await getAuthorizedUsers();
+            setAuthorizedUsers(users);
+        } catch (error) {
+            console.error("Failed to fetch users", error);
+        }
+    };
 
     useEffect(() => {
         if (!localStorage.getItem('tedx_tour_completed')) {
@@ -306,15 +331,16 @@ const Board = () => {
         }
     };
 
-    const handleLogin = (name) => {
-        setCurrentUser(name);
+    const handleLogin = (name, roll, isAdmin) => {
+        const userObj = { name, roll, isAdmin };
+        setCurrentUser(userObj);
+        localStorage.setItem('tedx_user_obj', JSON.stringify(userObj));
     };
 
     const handleLogout = () => {
         const wasLoggedIn = !!localStorage.getItem('tedx_token');
         localStorage.removeItem('tedx_token');
-        localStorage.removeItem('tedx_user');
-        localStorage.removeItem('tedx_roll');
+        localStorage.removeItem('tedx_user_obj');
         setCurrentUser(null);
         if (wasLoggedIn) {
             window.location.reload();
@@ -329,7 +355,12 @@ const Board = () => {
     const fetchSpeakers = async () => {
         if (!localStorage.getItem('tedx_token')) return;
         try {
-            const data = await getSpeakers();
+            const params = {};
+            if (filterMode === 'ME') params.assigned_to_me = true;
+            if (filterMode === 'UNASSIGNED') params.unassigned = true;
+            if (searchTerm) params.search = searchTerm;
+
+            const data = await getSpeakers(params);
             setSpeakers(data);
         } catch (e) {
             console.error("Failed to fetch", e);
@@ -471,6 +502,22 @@ const Board = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-red-500/30 focus:bg-white/10 transition-all placeholder:text-gray-600"
                         />
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+                        {[
+                            { id: 'ALL', label: 'All' },
+                            { id: 'ME', label: 'My Tasks' },
+                            { id: 'UNASSIGNED', label: 'Open' }
+                        ].map(m => (
+                            <button
+                                key={m.id}
+                                onClick={() => setFilterMode(m.id)}
+                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${filterMode === m.id ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                            >
+                                {m.label}
+                            </button>
+                        ))}
                     </div>
 
                     <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5">
@@ -642,6 +689,8 @@ const Board = () => {
                     speaker={selectedSpeaker}
                     onClose={() => setSelectedSpeaker(null)}
                     onUpdate={handleSpeakerUpdate}
+                    currentUser={currentUser}
+                    authorizedUsers={authorizedUsers}
                 />
             )}
 

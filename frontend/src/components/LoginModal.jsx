@@ -15,7 +15,7 @@ const LoginModal = ({ onLogin }) => {
 
         try {
             const data = await loginUser(rollNumber);
-            onLogin(data.user_name, data.roll_number);
+            onLogin(data.user_name, data.roll_number, data.is_admin);
         } catch (err) {
             setError(err.response?.data?.detail || 'Access Denied. Please try again.');
         } finally {
@@ -44,7 +44,7 @@ const LoginModal = ({ onLogin }) => {
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Roll Number (e.g. b25349)"
+                                placeholder="Roll Number"
                                 value={rollNumber}
                                 onChange={(e) => {
                                     setRollNumber(e.target.value);

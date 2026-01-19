@@ -83,12 +83,19 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
                         <MapPin size={12} />
                         <span className="truncate max-w-[80px]">{speaker.location || 'Unknown'}</span>
                     </div>
-                    {speaker.spoc_name && (
-                        <div className="flex items-center gap-1 text-purple-400">
-                            <div className="w-4 h-4 rounded-full bg-purple-900/50 border border-purple-500/30 flex items-center justify-center text-[8px] font-bold">
-                                {speaker.spoc_name[0]}
+                    {speaker.assigned_to ? (
+                        <div className="flex items-center gap-1.5 text-blue-400">
+                            <div className="w-4 h-4 rounded-full bg-blue-900/50 border border-blue-500/30 flex items-center justify-center text-[8px] font-black shadow-[0_0_8px_rgba(59,130,246,0.3)]">
+                                {speaker.assigned_to[0].toUpperCase()}
                             </div>
-                            <span className="text-[10px] opacity-70">SPOC</span>
+                            <span className="text-[9px] font-bold uppercase tracking-tight">{speaker.assigned_to}</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                            <div className="w-4 h-4 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-[10px] font-bold">
+                                ?
+                            </div>
+                            <span className="text-[9px] font-medium italic">Yet to be assigned</span>
                         </div>
                     )}
                 </div>

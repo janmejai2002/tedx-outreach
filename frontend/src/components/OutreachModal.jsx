@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Send, User, MapPin, Target, Edit, Save, Download, MessageSquare, Copy, CheckCircle, Mail, Linkedin, Globe, Search } from 'lucide-react';
-import { generateEmail, updateSpeaker, refineEmail } from '../api';
+import { assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail } from '../api';
 
-const OutreachModal = ({ speaker, onClose, onUpdate }) => {
+const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], currentUser = null }) => {
+    const [assigning, setAssigning] = useState(false);
     const [loading, setLoading] = useState(false);
     const [emailData, setEmailData] = useState(null);
     const [activeTab, setActiveTab] = useState('details'); // details | outreach
@@ -96,6 +96,32 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
         await updateSpeaker(speaker.id, patches);
         onUpdate(speaker.id, patches);
         setIsEditing(false);
+    };
+
+    const handleAssign = async (roll) => {
+        setAssigning(true);
+        try {
+            await assignSpeaker(speaker.id, roll);
+            onUpdate(speaker.id, { assigned_to: roll });
+        } catch (e) {
+            console.error("Assignment failed", e);
+            alert("Failed to assign speaker");
+        } finally {
+            setAssigning(false);
+        }
+    };
+
+    const handleUnassign = async () => {
+        setAssigning(true);
+        try {
+            await unassignSpeaker(speaker.id);
+            onUpdate(speaker.id, { assigned_to: null });
+        } catch (e) {
+            console.error("Unassignment failed", e);
+            alert("Failed to unassign speaker");
+        } finally {
+            setAssigning(false);
+        }
     };
 
     return (
@@ -260,24 +286,73 @@ const OutreachModal = ({ speaker, onClose, onUpdate }) => {
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs text-gray-500">ASSIGNED SPOC</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={formData.spoc_name}
-                                            onChange={(e) => setFormData({ ...formData, spoc_name: e.target.value })}
-                                            placeholder="Enter team member name..."
-                                            className={`flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30 ${!isEditing ? 'opacity-80' : ''}`}
-                                            readOnly={!isEditing}
-                                        />
-                                        {isEditing && (
-                                            <button
-                                                onClick={() => setFormData({ ...formData, spoc_name: localStorage.getItem('tedx_user') || '' })}
-                                                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded text-sm font-medium transition-colors"
-                                            >
-                                                Me
-                                            </button>
+                                    <label className="text-xs text-gray-500 flex items-center gap-1 font-bold uppercase tracking-wider">
+                                        <User size={12} className="text-red-500" />
+                                        {speaker.assigned_to ? 'Handling this Lead' : 'Lead Assignment'}
+                                    </label>
+
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between gap-4">
+                                        {speaker.assigned_to ? (
+                                            <>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500 font-black">
+                                                        {speaker.assigned_to[0].toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-white uppercase tracking-tight">{speaker.assigned_to}</p>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Assigned SPOC</p>
+                                                    </div>
+                                                </div>
+                                                {currentUser?.isAdmin && (
+                                                    <button
+                                                        onClick={handleUnassign}
+                                                        disabled={assigning}
+                                                        className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-red-500 transition-colors"
+                                                    >
+                                                        {assigning ? '...' : 'Remove'}
+                                                    </button>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-3 opacity-60">
+                                                    <div className="w-10 h-10 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center text-gray-600 font-black">
+                                                        ?
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-600 uppercase tracking-tight italic">Yet to be assigned</p>
+                                                        <p className="text-[10px] text-gray-600 font-bold uppercase">Open Lead</p>
+                                                    </div>
+                                                </div>
+                                                {currentUser?.isAdmin && authorizedUsers.length > 0 && (
+                                                    <select
+                                                        disabled={assigning}
+                                                        onChange={(e) => e.target.value && handleAssign(e.target.value)}
+                                                        className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-400 focus:outline-none focus:border-red-500 transition-all cursor-pointer hover:bg-black/60"
+                                                    >
+                                                        <option value="">Assign To...</option>
+                                                        {authorizedUsers.map(u => (
+                                                            <option key={u.roll_number} value={u.roll_number}>{u.name} ({u.roll_number})</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                            </>
                                         )}
+                                    </div>
+
+                                    {/* Legacy SPOC Field for reference/custom names */}
+                                    <div className="mt-2">
+                                        <label className="text-[9px] text-gray-600 font-bold mb-1 block">MANUAL OVERRIDE / NOTES</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={formData.spoc_name}
+                                                onChange={(e) => setFormData({ ...formData, spoc_name: e.target.value })}
+                                                placeholder="Additional names..."
+                                                className={`flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-[11px] text-gray-400 focus:outline-none focus:border-white/30 ${!isEditing ? 'opacity-50' : ''}`}
+                                                readOnly={!isEditing}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

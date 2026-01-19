@@ -17,8 +17,7 @@ export const loginUser = async (rollNumber) => {
     return response.data;
 };
 
-export const getSpeakers = async (status = null) => {
-    const params = status ? { status } : {};
+export const getSpeakers = async (params = {}) => {
     const response = await axios.get(`${API_URL}/speakers`, {
         params,
         headers: getAuthHeader()
