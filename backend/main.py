@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Response, Header
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate, BulkUpdate, Sponsor, SponsorUpdate, SponsorStatus
+from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate, AuthorizedUserUpdate, BulkUpdate, Sponsor, SponsorUpdate, SponsorStatus, CreativeAsset, CreativeUpdate
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -68,6 +68,17 @@ def auto_migrate():
                 pass
             else:
                 print(f"  ⚠ Error adding speaker_id to auditlog: {e}")
+
+        # AuthorizedUser Table Migrations
+        try:
+            conn.execute(text("ALTER TABLE authorizeduser ADD COLUMN role VARCHAR DEFAULT 'SPEAKER_OUTREACH'"))
+            conn.commit()
+            print("  ✓ Added role to authorizeduser")
+        except Exception as e:
+            if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
+                pass
+            else:
+                print(f"  ⚠ Error adding role to authorizeduser: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -154,6 +165,10 @@ app.add_middleware(
 def health_check():
     return {"status": "healthy"}
 
+@app.get("/authorized-users")
+def get_authorized_users(session: Session = Depends(get_session), admin: dict = Depends(verify_admin)):
+    return session.exec(select(AuthorizedUser)).all()
+
 @app.get("/debug/env")
 def debug_env(user: dict = Depends(verify_token)):
     """Debug endpoint to check if environment variables are loaded"""
@@ -170,14 +185,36 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
     user = session.exec(select(AuthorizedUser).where(AuthorizedUser.roll_number == roll)).first()
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized. Contact admin.")
-    access_token = create_access_token(data={"sub": user.name, "roll": roll, "is_admin": user.is_admin})
+    access_token = create_access_token(data={"sub": user.name, "roll": roll, "is_admin": user.is_admin, "role": user.role})
     return {
         "access_token": access_token, 
         "token_type": "bearer",
         "user_name": user.name,
         "roll_number": roll,
-        "is_admin": user.is_admin
+        "is_admin": user.is_admin,
+        "role": user.role
     }
+
+# Admin: Role Management
+@app.patch("/users/{roll_number}")
+def update_user_role(
+    roll_number: str, 
+    user_update: AuthorizedUserUpdate,
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    user = session.exec(select(AuthorizedUser).where(AuthorizedUser.roll_number == roll_number)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_data = user_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(user, key, value)
+    
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
 # Task Assignment Endpoints
 @app.post("/speakers/{speaker_id}/assign")
 def assign_speaker(
@@ -801,5 +838,125 @@ Output ONLY a JSON object with this structure:
         session.commit()
         
         return kit_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Creative Asset Endpoints
+@app.get("/creatives")
+def get_creatives(
+    assigned_to_me: bool = False,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    statement = select(CreativeAsset)
+    if assigned_to_me:
+        statement = statement.where(CreativeAsset.assigned_to == user['roll'])
+    
+    assets = session.exec(statement.order_by(CreativeAsset.id)).all()
+    return assets
+
+@app.post("/creatives")
+def create_creative(
+    asset: CreativeAsset,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    asset.assigned_by = user['sub']
+    session.add(asset)
+    session.commit()
+    session.refresh(asset)
+    return asset
+
+@app.patch("/creatives/{asset_id}")
+def update_creative(
+    asset_id: int,
+    asset_update: CreativeUpdate,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    db_asset = session.get(CreativeAsset, asset_id)
+    if not db_asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    update_data = asset_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_asset, key, value)
+    
+    db_asset.last_updated = func.now()
+    session.add(db_asset)
+    session.commit()
+    session.refresh(db_asset)
+    return db_asset
+
+@app.delete("/creatives/{asset_id}")
+def delete_creative(asset_id: int, session: Session = Depends(get_session)):
+    db_asset = session.get(CreativeAsset, asset_id)
+    if not db_asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    session.delete(db_asset)
+    session.commit()
+    return {"message": "Creative asset deleted"}
+
+@app.post("/generate-creative-brief")
+def generate_creative_brief(
+    asset_id: int,
+    session: Session = Depends(get_session)
+):
+    asset = session.get(CreativeAsset, asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Perplexity API key not configured")
+
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    prompt = f"""Create a Production Brief for:
+Asset: {asset.title}
+Type: {asset.asset_type}
+Description: {asset.description or 'A creative piece for TEDxXLRI 2026'}
+
+Theme: 'Blurring Lines'
+
+Generate a detailed creative brief in a single JSON:
+1. "brief_html": A professional creative brief with Production Goals, Visual Style, and Messaging.
+2. "shot_list_html": A suggested list of shots or design elements in HTML format.
+3. "mood_html": Description of colors, lighting, and vibe in HTML format.
+
+Output ONLY a JSON object with this structure:
+{{
+  "brief_html": "...",
+  "shot_list_html": "...",
+  "mood_html": "..."
+}}"""
+
+    payload = {
+        "model": "llama-3-sonar-small-32k-online",
+        "messages": [
+            {"role": "system", "content": "You are a creative director for TEDxXLRI."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+        
+        start = content.find('{')
+        end = content.rfind('}') + 1
+        brief_data = json.loads(content[start:end])
+        
+        asset.creative_brief = json.dumps(brief_data)
+        asset.status = CreativeStatus.SCRIPTING
+        session.add(asset)
+        session.commit()
+        
+        return brief_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

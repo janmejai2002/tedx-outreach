@@ -124,3 +124,35 @@ export const generateSponsorEmail = async (id) => {
     const response = await axios.post(`${API_URL}/generate-sponsor-email?sponsor_id=${id}`, {}, { headers: getAuthHeader() });
     return response.data;
 };
+
+// Creative APIs
+export const getCreatives = async (params = {}) => {
+    const response = await axios.get(`${API_URL}/creatives`, { params, headers: getAuthHeader() });
+    return response.data;
+};
+
+export const createCreative = async (data) => {
+    const response = await axios.post(`${API_URL}/creatives`, data, { headers: getAuthHeader() });
+    return response.data;
+};
+
+export const updateCreative = async (id, data) => {
+    const response = await axios.patch(`${API_URL}/creatives/${id}`, data, { headers: getAuthHeader() });
+    return response.data;
+};
+
+export const generateCreativeBrief = async (id) => {
+    const response = await axios.post(`${API_URL}/generate-creative-brief?asset_id=${id}`, {}, { headers: getAuthHeader() });
+    return response.data;
+};
+
+// Admin roles
+export const getAllUsers = async () => {
+    const response = await axios.get(`${API_URL}/authorized-users`, { headers: getAuthHeader() });
+    return response.data;
+};
+
+export const updateUserRole = async (rollNumber, data) => {
+    const response = await axios.patch(`${API_URL}/users/${rollNumber}`, data, { headers: getAuthHeader() });
+    return response.data;
+};

@@ -5,8 +5,10 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+import CreativeBoard from './components/CreativeBoard';
+
 function App() {
-  const [mode, setMode] = useState('speaker'); // 'speaker' | 'sponsor'
+  const [mode, setMode] = useState('speaker'); // 'speaker' | 'sponsor' | 'creatives'
 
   useEffect(() => {
     // Keep-alive pinger for Render Free Tier
@@ -25,11 +27,13 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    mode === 'speaker' ?
-      <Board onSwitchMode={() => setMode('sponsor')} /> :
-      <SponsorBoard onSwitchMode={() => setMode('speaker')} />
-  );
+  if (mode === 'speaker') {
+    return <Board onSwitchMode={(m) => setMode(m || 'sponsor')} />;
+  } else if (mode === 'sponsor') {
+    return <SponsorBoard onSwitchMode={(m) => setMode(m || 'creatives')} />;
+  } else {
+    return <CreativeBoard onSwitchMode={(m) => setMode(m || 'speaker')} />;
+  }
 }
 
 export default App;

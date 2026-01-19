@@ -117,9 +117,52 @@ class SponsorUpdate(SQLModel):
     assigned_to: Optional[str] = None
     email_draft: Optional[str] = None
 
+class UserRole(str, Enum):
+    SPEAKER_OUTREACH = "SPEAKER_OUTREACH"
+    SPONSOR_OUTREACH = "SPONSOR_OUTREACH"
+    CREATIVES = "CREATIVES"
+    ADMIN = "ADMIN"
+
+class CreativeStatus(str, Enum):
+    CONCEPT = "CONCEPT"
+    SCRIPTING = "SCRIPTING"
+    PRODUCTION = "PRODUCTION"
+    EDITING = "EDITING"
+    REVIEW = "REVIEW"
+    APPROVED = "APPROVED"
+
+class CreativeAsset(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(index=True)
+    asset_type: str = Field(default="Video") # Video, Social Post, Poster, Blog
+    platform: Optional[str] = None # Instagram, YouTube, LinkedIn
+    description: Optional[str] = None
+    moodboard_url: Optional[str] = None
+    creative_brief: Optional[str] = None # AI Generated
+    
+    status: CreativeStatus = Field(default=CreativeStatus.CONCEPT)
+    priority: Optional[str] = Field(default="MEDIUM")
+    due_date: Optional[datetime] = None
+    
+    assigned_to: Optional[str] = None # Roll number (name)
+    assigned_by: Optional[str] = None
+    last_updated: datetime = Field(default_factory=datetime.now)
+
+class CreativeUpdate(SQLModel):
+    title: Optional[str] = None
+    asset_type: Optional[str] = None
+    platform: Optional[str] = None
+    description: Optional[str] = None
+    moodboard_url: Optional[str] = None
+    creative_brief: Optional[str] = None
+    status: Optional[CreativeStatus] = None
+    priority: Optional[str] = None
+    due_date: Optional[datetime] = None
+    assigned_to: Optional[str] = None
+
 class BulkUpdate(SQLModel):
     ids: List[int]
-    status: Optional[OutreachStatus] = None
+    status: Optional[str] = None
     assigned_to: Optional[str] = None
     is_bounty: Optional[bool] = None
 
@@ -136,10 +179,17 @@ class AuthorizedUser(SQLModel, table=True):
     roll_number: str = Field(index=True, unique=True)
     name: str
     is_admin: bool = Field(default=False)
+    role: UserRole = Field(default=UserRole.SPEAKER_OUTREACH)
     added_by: Optional[str] = None
     added_at: datetime = Field(default_factory=datetime.now)
+
+class AuthorizedUserUpdate(SQLModel):
+    name: Optional[str] = None
+    is_admin: Optional[bool] = None
+    role: Optional[UserRole] = None
 
 class AuthorizedUserCreate(SQLModel):
     roll_number: str
     name: str
     is_admin: bool = False
+    role: UserRole = UserRole.SPEAKER_OUTREACH

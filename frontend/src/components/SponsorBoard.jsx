@@ -115,12 +115,26 @@ const SponsorBoard = ({ onSwitchMode }) => {
                         </div>
                     </div>
 
-                    <button
-                        onClick={onSwitchMode}
-                        className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-all flex items-center gap-2 border border-white/5"
-                    >
-                        <ArrowLeftRight size={12} /> Switch to Speakers
-                    </button>
+                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 ml-4">
+                        <button
+                            onClick={() => onSwitchMode('speaker')}
+                            className="px-3 py-1 text-[9px] font-black uppercase rounded-lg text-gray-500 hover:text-red-400 transition-all"
+                        >
+                            Speakers
+                        </button>
+                        <button
+                            onClick={() => onSwitchMode('sponsor')}
+                            className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${'sponsor' === 'sponsor' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40' : 'text-gray-500 hover:text-white'}`}
+                        >
+                            Sponsors
+                        </button>
+                        <button
+                            onClick={() => onSwitchMode('creatives')}
+                            className="px-3 py-1 text-[9px] font-black uppercase rounded-lg text-gray-500 hover:text-purple-400 transition-all"
+                        >
+                            Creatives
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 max-w-xl mx-12">
