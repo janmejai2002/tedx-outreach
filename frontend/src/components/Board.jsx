@@ -247,11 +247,9 @@ const Board = () => {
         // Gamification Logic
         if (currentUser) {
             // Calculate my XP
-            const myNotes = speakers.filter(s => s.spoc_name === currentUser);
+            const myLeads = speakers.filter(s => s.spoc_name === currentUser.name || s.assigned_to === currentUser.roll);
             let xp = 0;
-            // Simplified XP calc based on current state of speakers I own
-            // In a real app, this would be transactional. Here it's state-based.
-            myNotes.forEach(s => {
+            myLeads.forEach(s => {
                 const multiplier = s.is_bounty ? 2 : 1;
                 if (['RESEARCHED'].includes(s.status)) xp += (10 * multiplier);
                 if (['CONTACT_INITIATED', 'CONNECTED', 'IN_TALKS'].includes(s.status)) xp += (60 * multiplier);
@@ -262,11 +260,12 @@ const Board = () => {
             // Mock Leaderboard (Derived from current board state)
             const spocMap = {};
             speakers.forEach(s => {
-                if (s.spoc_name) {
+                const owner = s.assigned_to || s.spoc_name;
+                if (owner) {
                     const multiplier = s.is_bounty ? 2 : 1;
-                    if (!spocMap[s.spoc_name]) spocMap[s.spoc_name] = 0;
-                    if (['LOCKED'].includes(s.status)) spocMap[s.spoc_name] += (500 * multiplier);
-                    if (['CONTACT_INITIATED', 'CONNECTED'].includes(s.status)) spocMap[s.spoc_name] += (50 * multiplier);
+                    if (!spocMap[owner]) spocMap[owner] = 0;
+                    if (['LOCKED'].includes(s.status)) spocMap[owner] += (500 * multiplier);
+                    if (['CONTACT_INITIATED', 'CONNECTED'].includes(s.status)) spocMap[owner] += (50 * multiplier);
                 }
             });
             const lb = Object.entries(spocMap)
@@ -468,8 +467,16 @@ const Board = () => {
         setActiveId(null);
     };
 
-    const handleSpeakerUpdate = (id, updates) => {
+    const handleSpeakerUpdate = async (id, updates) => {
+        // Optimistic update
         setSpeakers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+        try {
+            await updateSpeaker(id, updates);
+        } catch (e) {
+            console.error("Failed to update speaker", e);
+            // Optionally: revert state on failure
+            fetchSpeakers();
+        }
     };
 
     if (!currentUser) {
