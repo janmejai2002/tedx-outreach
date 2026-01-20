@@ -25,12 +25,23 @@ def call_ai(prompt: str, system_prompt: str = "You are a professional outreach a
     }
 
     try:
-        response = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
+        response = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=45)
+        if response.status_code == 429:
+            raise HTTPException(status_code=429, detail="AI Rate Limit exceeded. Please wait a moment.")
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="AI Service Timeout. The search took too long.")
     except Exception as e:
-        print(f"AI Error: {e}")
-        raise HTTPException(status_code=502, detail=f"AI Service Error: {str(e)}")
+        detail = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_json = e.response.json()
+                detail = error_json.get('error', {}).get('message', str(e))
+            except:
+                pass
+        print(f"AI Error: {detail}")
+        raise HTTPException(status_code=502, detail=f"AI Service Error: {detail}")
 
 def hunt_email(name: str, domain: str = "", location: str = ""):
     """

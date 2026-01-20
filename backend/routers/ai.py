@@ -238,16 +238,20 @@ async def bulk_hunt_emails(
         if not speaker or speaker.email:
             continue
             
-        email = hunt_email(speaker.name, speaker.primary_domain or "", speaker.location or "")
-        if email and "@" in email:
-            speaker.email = email.strip()
-            if speaker.status == OutreachStatus.SCOUTED:
-                speaker.status = OutreachStatus.EMAIL_ADDED
-            session.add(speaker)
-            found_count += 1
-            results.append({"id": sid, "name": speaker.name, "email": email})
-        else:
-            results.append({"id": sid, "name": speaker.name, "email": None})
+        try:
+            email = hunt_email(speaker.name, speaker.primary_domain or "", speaker.location or "")
+            if email and "@" in email:
+                speaker.email = email.strip()
+                if speaker.status == OutreachStatus.SCOUTED:
+                    speaker.status = OutreachStatus.EMAIL_ADDED
+                session.add(speaker)
+                found_count += 1
+                results.append({"id": sid, "name": speaker.name, "email": email, "status": "success"})
+            else:
+                results.append({"id": sid, "name": speaker.name, "email": None, "status": "not_found"})
+        except Exception as e:
+            print(f"Individual hunt failure for {speaker.name}: {e}")
+            results.append({"id": sid, "name": speaker.name, "email": None, "status": "error", "error": str(e)})
             
     session.commit()
     return {"found": found_count, "results": results}

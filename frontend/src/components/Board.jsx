@@ -643,14 +643,34 @@ const Board = ({ onSwitchMode }) => {
             .filter(id => !isNaN(id));
 
         if (validIds.length === 0) return;
+
+        const confirm = window.confirm(`Start AI Hunt for ${validIds.length} leads? This may take some time.`);
+        if (!confirm) return;
+
         setLoading(true);
+        let found = 0;
+        let processed = 0;
+
         try {
-            const result = await bulkHuntEmails(validIds);
+            const { huntEmail } = await import('../api');
+
+            for (const id of validIds) {
+                try {
+                    const result = await huntEmail(id);
+                    if (result.email) found++;
+                } catch (err) {
+                    console.error(`Failed to hunt email for ID ${id}:`, err);
+                }
+                processed++;
+            }
+
             await fetchSpeakers();
             setSelectedIds(new Set());
             setIsSelectMode(false);
-            alert(`AI Hunt complete! Found ${result.found} emails.`);
-            if (result.found > 0) {
+
+            alert(`AI Hunt complete! Processed ${processed} leads, found ${found} emails.`);
+
+            if (found > 0) {
                 confetti({
                     particleCount: 150,
                     spread: 70,
@@ -660,7 +680,7 @@ const Board = ({ onSwitchMode }) => {
             }
         } catch (error) {
             console.error("Bulk hunt failed", error);
-            alert(`Hunt failed: ${error.response?.data?.detail || error.message}`);
+            alert(`Bulk hunt process interrupted: ${error.message}`);
         } finally {
             setLoading(false);
         }
