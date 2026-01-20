@@ -158,12 +158,12 @@ origins = [
     "https://tedx-outreach.onrender.com",
     "https://tedxoutreach.onrender.com",
     "https://tedx-outreach.vercel.app",
-    "https://tedx-outreach-*.vercel.app"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex="https://tedx-outreach-.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

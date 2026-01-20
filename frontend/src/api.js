@@ -183,7 +183,7 @@ export const generateCreativeBrief = async (id) => {
 
 // Admin roles
 export const getAllUsers = async () => {
-    const response = await api.get('/authorized-users');
+    const response = await api.get('/admin/users');
     return response.data;
 };
 

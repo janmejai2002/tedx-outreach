@@ -8,6 +8,7 @@ import requests
 import json
 from pydantic import BaseModel
 from typing import Optional
+from ai_utils import call_ai
 
 router = APIRouter(tags=["AI"])
 
@@ -34,39 +35,43 @@ async def generate_email(
     Step 2: Based on that research, write a highly personalized and compelling invitation email for {speaker.name} to speak at TEDxXLRI.
     
     Event Personality & Context:
-    - Event: TEDxXLRI 2026
-    - Campus: XLRI Delhi-NCR (India's premier and oldest management institute).
-    - Audience: 100+ ambitious MBA students, future business leaders, and CXOs.
-    - Global Reach: The talk will be professionally recorded and featured on the global TEDx YouTube channel.
-    - Theme: 'The Blurring Line' (Exploring the dissolving boundaries between technology, humanity, and business in 2025/2026).
-    - Logistics: TEDxXLRI will provide full coverage for travel and deluxe accommodation.
-    - Format: Standard 18-minute TED-style talk.
+    - Event: TEDxXLRI 2026 (Theme: 'The Blurring Line')
+    - Logistics: Travel and deluxe accommodation provided.
     
-    Speaker Intelligence:
-    - Name: {speaker.name}
-    - Field: {speaker.primary_domain or 'Leadership/Innovation'}
-    - Existing Data: {speaker.search_details or ''}
-    
-    Formatting Guidelines:
-    1. The Hook: Start by citing a VERY specific recent milestone or thought-piece you found about them in Step 1.
-    2. The Why: Articulate exactly how their specific work bridges the "Blurring Line" theme.
-    3. The Vibe: Use a tone that is "Prestigious but Disruptive."
-    4. The Logistics: Seamlessly mention that travel and stay are managed by us to minimize friction.
-    5. The CTA: Request a 10-minute introductory sync.
-
-    Output ONLY the email content. No conversational filler.
+    Output format: You MUST return ONLY a JSON object with two fields:
+    - subject: A catchy subject line
+    - body_html: The email content in HTML format (use <p>, <br>, <strong> tags).
     """
     
-    draft = call_ai(prompt, system_prompt="You are a prestigious head of speaker curation for TEDxXLRI. Your goal is to secure world-class speakers by demonstrating deep knowledge of their work.")
+    raw_response = call_ai(prompt, system_prompt="You are a prestigious head of speaker curation for TEDxXLRI. Output ONLY valid JSON.")
     
-    # Save to DB
-    speaker.email_draft = draft
+    try:
+        # Robust JSON cleaning
+        clean_json = raw_response
+        if "```json" in raw_response:
+            clean_json = raw_response.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw_response:
+            clean_json = raw_response.split("```")[1].split("```")[0].strip()
+        
+        email_obj = json.loads(clean_json)
+        # Ensure it has the right keys
+        if "subject" not in email_obj: email_obj["subject"] = f"Invitation: TEDxXLRI 2026"
+        if "body_html" not in email_obj: email_obj["body_html"] = raw_response
+    except:
+        email_obj = {
+            "subject": f"Invitation: TEDxXLRI 2026",
+            "body_html": raw_response.replace("\n", "<br>")
+        }
+    
+    # Save to DB as stringified JSON
+    draft_str = json.dumps(email_obj)
+    speaker.email_draft = draft_str
     if speaker.status == OutreachStatus.SCOUTED:
         speaker.status = OutreachStatus.DRAFTED
     session.add(speaker)
     session.commit()
     
-    return {"draft": draft}
+    return email_obj
 
 @router.post("/refine-email")
 async def refine_email(
@@ -82,12 +87,21 @@ async def refine_email(
     Instruction for refinement:
     {request.instruction}
     
-    Rewrite the email according to the instruction while maintaining the professional tone of TEDxXLRI.
-    Output ONLY the refined email content.
+    Output format: You MUST return ONLY a JSON object with two fields:
+    - subject: The updated subject line
+    - body_html: The updated email content in HTML.
     """
     
-    refined_draft = call_ai(prompt)
-    return {"draft": refined_draft}
+    raw_response = call_ai(prompt)
+    try:
+        clean_json = raw_response
+        if "```json" in raw_response:
+            clean_json = raw_response.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw_response:
+            clean_json = raw_response.split("```")[1].split("```")[0].strip()
+        return json.loads(clean_json)
+    except:
+        return {"subject": "Updated Invitation", "body_html": raw_response.replace("\n", "<br>")}
 
 @router.post("/ingest-ai-data")
 @router.post("/admin/ingest-ai")
@@ -116,15 +130,21 @@ async def ingest_ai_data(
     Return ONLY the raw JSON array. If no speakers are found, return [].
     """
     
-    raw_json = call_ai(prompt, system_prompt="You are a data extraction assistant for TEDxXLRI. Output ONLY valid JSON array. Be extremely accurate with names.")
+    raw_json = call_ai(prompt, system_prompt="You are a data extraction assistant for TEDxXLRI. Output ONLY a valid JSON array of objects. No intro text, no conversational filler.")
     
     try:
-        # Clean the output if the AI added markdown blocks
-        clean_json = raw_json
-        if "```json" in raw_json:
-            clean_json = raw_json.split("```json")[1].split("```")[0].strip()
-        elif "```" in raw_json:
-            clean_json = raw_json.split("```")[1].split("```")[0].strip()
+        # Robust JSON cleaning
+        clean_json = raw_json.strip()
+        if "```json" in clean_json:
+            clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+        elif "```" in clean_json:
+            clean_json = clean_json.split("```")[1].split("```")[0].strip()
+        
+        # Remove any leading/trailing non-bracket characters if AI added text
+        start_idx = clean_json.find('[')
+        end_idx = clean_json.rfind(']')
+        if start_idx != -1 and end_idx != -1:
+            clean_json = clean_json[start_idx : end_idx + 1]
             
         speakers_data = json.loads(clean_json)
         
