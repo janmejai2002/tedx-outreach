@@ -339,23 +339,47 @@ def purge_invalid_data(
     session: Session = Depends(get_session),
     admin: dict = Depends(verify_admin)
 ):
-    """Delete speakers with 'NaN' or empty names/IDs (Admin only)"""
-    # Delete speakers with name "NaN" or empty
-    invalid_speakers = session.exec(
+    """Delete corrupted junk cards and fix 'NaN' assignments (Admin only)"""
+    # 1. Delete actual junk cards (where name is NaN, None or empty)
+    junk_speakers = session.exec(
         select(Speaker).where(
             (Speaker.name == 'NaN') | 
+            (Speaker.name == 'nan') |
             (Speaker.name == '') | 
-            (Speaker.name == 'None')
+            (Speaker.name == 'None') |
+            (Speaker.name == 'unknown') |
+            (Speaker.name == 'Unknown')
         )
     ).all()
     
-    count = 0
-    for s in invalid_speakers:
+    del_count = 0
+    for s in junk_speakers:
         session.delete(s)
-        count += 1
+        del_count += 1
+    
+    # 2. Fix corrupted assignments (where assigned_to survived as 'NaN' string)
+    corrupted_assignments = session.exec(
+        select(Speaker).where(
+            (Speaker.assigned_to == 'NaN') |
+            (Speaker.assigned_to == 'nan') |
+            (Speaker.assigned_to == 'None')
+        )
+    ).all()
+    
+    fix_count = 0
+    for s in corrupted_assignments:
+        s.assigned_to = None
+        s.assigned_by = None
+        s.assigned_at = None
+        session.add(s)
+        fix_count += 1
     
     session.commit()
-    return {"message": f"Purged {count} invalid records"}
+    return {
+        "message": f"Operation complete. Purged {del_count} junk cards and reset {fix_count} corrupted assignments.",
+        "purged": del_count,
+        "fixed": fix_count
+    }
 
 @app.delete("/admin/users/{roll_number}")
 def remove_authorized_user(
