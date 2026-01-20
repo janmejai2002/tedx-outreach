@@ -5,10 +5,9 @@ from models import SprintDeadline
 from auth_utils import verify_token, verify_admin
 from datetime import datetime
 
-router = APIRouter(tags=["meta"])
+router = APIRouter(prefix="/meta", tags=["meta"])
 
 @router.get("/sprint-deadline", response_model=SprintDeadline)
-@router.get("/sprint/deadline", response_model=SprintDeadline)
 def get_sprint_deadline(
     session: Session = Depends(get_session),
     user: dict = Depends(verify_token)
@@ -20,7 +19,6 @@ def get_sprint_deadline(
     return deadline
 
 @router.post("/sprint-deadline", response_model=SprintDeadline)
-@router.post("/sprint/deadline", response_model=SprintDeadline)
 def set_sprint_deadline(
     deadline_data: SprintDeadline,
     session: Session = Depends(get_session),

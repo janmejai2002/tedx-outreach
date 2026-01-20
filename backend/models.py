@@ -62,7 +62,7 @@ class Speaker(SQLModel, table=True):
     last_activity: Optional[datetime] = Field(default_factory=datetime.now)
 
 class SpeakerUpdate(SQLModel):
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     remarks: Optional[str] = None
     spoc_name: Optional[str] = None
