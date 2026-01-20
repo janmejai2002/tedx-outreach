@@ -155,7 +155,9 @@ origins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://tedx-outreach.onrender.com",
-    "https://tedxoutreach.onrender.com"
+    "https://tedxoutreach.onrender.com",
+    "https://tedx-outreach.vercel.app",
+    "https://tedx-outreach-*.vercel.app"
 ]
 
 app.add_middleware(

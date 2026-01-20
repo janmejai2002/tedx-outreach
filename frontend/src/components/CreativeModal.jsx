@@ -182,10 +182,33 @@ const CreativeModal = ({ asset, onClose, onUpdate, currentUser }) => {
 
                                 <div className="p-6 bg-white/5 rounded-3xl border border-white/5">
                                     <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Moodboard / Assets</h4>
-                                    <button className="w-full py-6 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center gap-2 text-gray-600 hover:text-purple-400 hover:border-purple-500/20 transition-all">
-                                        <ExternalLink size={20} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Connect Assets Folder</span>
-                                    </button>
+                                    {isEditing ? (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="url"
+                                                placeholder="https://drive.google.com/..."
+                                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-purple-500/50"
+                                                value={formData.moodboard_url || ''}
+                                                onChange={e => setFormData({ ...formData, moodboard_url: e.target.value })}
+                                            />
+                                            <p className="text-[9px] text-gray-600">Paste Figma, Drive, or Pinterest link.</p>
+                                        </div>
+                                    ) : formData.moodboard_url ? (
+                                        <a
+                                            href={formData.moodboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full py-4 bg-purple-600/10 border border-purple-500/30 rounded-2xl flex flex-col items-center gap-2 text-purple-400 hover:bg-purple-600/20 transition-all"
+                                        >
+                                            <ExternalLink size={20} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Open Assets</span>
+                                        </a>
+                                    ) : (
+                                        <div className="w-full py-6 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center gap-2 text-gray-600">
+                                            <ExternalLink size={20} className="opacity-50" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-50">No Assets Linked</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -253,8 +276,8 @@ const CreativeModal = ({ asset, onClose, onUpdate, currentUser }) => {
                         </div>
                     )}
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 };
 
