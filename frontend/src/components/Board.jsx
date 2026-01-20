@@ -142,7 +142,16 @@ const Board = ({ onSwitchMode }) => {
     const [showFocusMode, setShowFocusMode] = useState(false);
     const [sessionAdds, setSessionAdds] = useState([]);
     const [showHub, setShowHub] = useState(false);
-    const [viewModes, setViewModes] = useState({}); // columnId -> 'kanban' | 'gallery'
+    const [viewModes, setViewModes] = useState({
+        SCOUTED: 'kanban',
+        EMAIL_ADDED: 'kanban',
+        RESEARCHED: 'kanban',
+        DRAFTED: 'kanban',
+        CONTACT_INITIATED: 'kanban',
+        CONNECTED: 'kanban',
+        IN_TALKS: 'kanban',
+        LOCKED: 'kanban'
+    });
 
     const toggleViewMode = (colId) => {
         setViewModes(prev => ({
@@ -161,6 +170,9 @@ const Board = ({ onSwitchMode }) => {
     const [showDivideModal, setShowDivideModal] = useState(false);
     const [targetUsers, setTargetUsers] = useState(new Set());
     const [loading, setLoading] = useState(false);
+    const [showLogin, setShowLogin] = useState(false);
+    const [showAdmin, setShowAdmin] = useState(false);
+
 
     const toggleSelection = (id) => {
         const newSet = new Set(selectedIds);
@@ -685,53 +697,40 @@ const Board = ({ onSwitchMode }) => {
                 </div>
 
                 {/* Center: Search & Primary Actions */}
-                <div className="flex-1 max-w-2xl mx-8 flex items-center gap-3">
-                    <div className="relative flex-1 group">
-                        <Search className="absolute left-3.5 top-2.5 text-gray-500 group-focus-within:text-red-500 transition-colors" size={15} />
+                {/* Middle: Fast Search & Filters */}
+                <div className="flex-1 flex items-center gap-2 md:gap-3 px-2 md:px-0">
+                    <div className="relative flex-1 group max-w-xs md:max-w-2xl">
+                        <Search className="absolute left-3.5 top-2.5 text-gray-400 group-focus-within:text-red-500 transition-colors" size={14} />
                         <input
                             type="text"
-                            placeholder="Find speakers, domains, or leads..."
+                            placeholder="Find..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-red-500/30 focus:bg-white/10 transition-all placeholder:text-gray-600"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-red-500/30 focus:bg-white/10 transition-all placeholder:text-gray-600"
                         />
                     </div>
 
-                    <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+                    <div className="hidden sm:flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
                         {[
                             { id: 'ALL', label: 'All' },
-                            { id: 'ME', label: 'My Tasks' },
-                            { id: 'UNASSIGNED', label: 'Open' }
+                            { id: 'ME', label: 'Mine' },
                         ].map(m => (
                             <button
                                 key={m.id}
                                 onClick={() => setFilterMode(m.id)}
-                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${filterMode === m.id ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${filterMode === m.id ? 'bg-red-600 text-white' : 'text-gray-500'}`}
                             >
                                 {m.label}
                             </button>
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5 shrink-0">
                         <button
                             onClick={() => setIsAdding(true)}
-                            className="h-8 pl-3 pr-4 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-red-900/20"
-                            data-tour="add-btn"
+                            className="h-8 md:pl-3 md:pr-4 px-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-red-900/20"
                         >
-                            <span className="text-base font-normal">+</span> Add
-                        </button>
-                        <button
-                            onClick={() => setShowFocusMode(true)}
-                            className="h-8 w-8 bg-yellow-400/10 hover:bg-yellow-400 text-yellow-500 hover:text-black rounded-lg flex items-center justify-center transition-all border border-yellow-500/20 hover:border-yellow-400 relative overflow-hidden group"
-                            title="Flash Mode (Ultra-Fast Scouting)"
-                        >
-                            <motion.div
-                                className="absolute inset-0 bg-yellow-400/20"
-                                animate={{ opacity: [0.1, 0.4, 0.1] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                            />
-                            <Zap size={14} className="relative z-10 group-hover:fill-current" />
+                            <span className="text-sm font-normal">+</span> <span className="hidden md:inline">Add</span>
                         </button>
                     </div>
                 </div>
@@ -887,6 +886,7 @@ const Board = ({ onSwitchMode }) => {
                                     onToggleSelect={toggleSelection}
                                     viewMode={viewModes[key] || 'kanban'}
                                     onToggleView={() => toggleViewMode(key)}
+                                    userMap={userMap}
                                 />
                             </div>
                         ))}
@@ -1227,15 +1227,15 @@ const Board = ({ onSwitchMode }) => {
     );
 };
 
-const Column = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectMode, selectedIds, onToggleSelect, viewMode = 'kanban', onToggleView }) => {
+const Column = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectMode, selectedIds, onToggleSelect, viewMode = 'kanban', onToggleView, userMap = {} }) => {
     const { setNodeRef, isOver } = useDroppable({ id });
 
     return (
-        <div ref={setNodeRef} className={`${viewMode === 'gallery' ? 'w-full' : 'w-80'} flex-shrink-0 flex flex-col rounded-xl transition-all duration-300 ${isOver ? 'bg-white/[0.05] border border-red-500/30' : 'bg-transparent'}`}>
+        <div ref={setNodeRef} className={`${viewMode === 'gallery' ? 'w-full' : 'w-[85vw] md:w-80'} flex-shrink-0 flex flex-col rounded-xl transition-all duration-300 ${isOver ? 'bg-white/[0.05] border border-red-500/30' : 'bg-transparent'}`}>
             <div className="p-4 flex items-center justify-between sticky top-0 bg-[#050505]/95 backdrop-blur-sm z-10 border-b border-white/5 rounded-t-xl">
                 <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${id === 'LOCKED' ? 'bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]' : 'bg-gray-600'}`} />
-                    <h3 className="font-bold text-sm tracking-wide text-gray-200 uppercase tracking-tighter">{title}</h3>
+                    <h3 className="font-bold text-xs md:text-sm tracking-wide text-gray-200 uppercase tracking-tighter">{title}</h3>
                     <button
                         onClick={onToggleView}
                         className="p-1 hover:bg-white/10 rounded-md text-gray-600 hover:text-white transition-all ml-1"
@@ -1259,6 +1259,7 @@ const Column = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectM
                             isSelected={selectedIds.has(speaker.id)}
                             onToggleSelect={onToggleSelect}
                             compact={viewMode === 'gallery'}
+                            assignedName={userMap[speaker.assigned_to] || speaker.assigned_to}
                         />
                     ))}
                 </SortableContext>

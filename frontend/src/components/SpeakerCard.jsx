@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { LayoutGrid, MapPin, Mail, Award, CheckCircle, Target, Phone, Tag } from 'lucide-react';
 
-const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelected, onToggleSelect, compact = false }) => {
+const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelected, onToggleSelect, compact = false, assignedName = null }) => {
     const {
         attributes,
         listeners,
@@ -116,10 +116,10 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
 
                     {speaker.assigned_to ? (
                         <div className="flex items-center gap-1.5 text-blue-400">
-                            <div className="w-4 h-4 rounded-full bg-blue-900/50 border border-blue-500/30 flex items-center justify-center text-[8px] font-black shadow-[0_0_8px_rgba(59,130,246,0.3)]">
-                                {speaker.assigned_to[0].toUpperCase()}
+                            <div className="w-4 h-4 rounded-full bg-blue-900/50 border border-blue-500/30 flex items-center justify-center text-[8px] font-black shadow-[0_0_8px_rgba(59,130,246,0.3)] shrink-0">
+                                {assignedName ? assignedName[0].toUpperCase() : speaker.assigned_to[0].toUpperCase()}
                             </div>
-                            <span className="text-[9px] font-bold uppercase tracking-tight">{speaker.assigned_to}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-tight truncate max-w-[60px] md:max-w-[100px]">{assignedName || speaker.assigned_to}</span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1.5 text-gray-600">

@@ -180,20 +180,89 @@ def debug_env(user: dict = Depends(verify_token)):
     }
 
 @app.post("/login")
-def login(request: LoginRequest, session: Session = Depends(get_session)):
-    roll = request.roll_number.lower().strip()
-    user = session.exec(select(AuthorizedUser).where(AuthorizedUser.roll_number == roll)).first()
+def login(user_login: UserLogin, session: Session = Depends(get_session)):
+    # Try Roll Number match (Original)
+    user = session.exec(select(AuthorizedUser).where(AuthorizedUser.roll_number == user_login.roll_number.lower().strip())).first()
+    
+    # If no roll match, try First Name match (Case insensitive)
     if not user:
-        raise HTTPException(status_code=401, detail="Unauthorized. Contact admin.")
-    access_token = create_access_token(data={"sub": user.name, "roll": roll, "is_admin": user.is_admin, "role": user.role})
+        all_users = session.exec(select(AuthorizedUser)).all()
+        target_name = user_login.roll_number.lower().strip()
+        for u in all_users:
+            first_name = u.name.split()[0].lower()
+            if first_name == target_name:
+                user = u
+                break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credential. Roll/Name not recognized.")
+    
+    access_token = create_access_token(data={"sub": user.roll_number, "isAdmin": user.role == "ADMIN"})
+    return {"access_token": access_token, "token_type": "bearer", "isAdmin": user.role == "ADMIN", "user_name": user.name}
+
+# --- BACKUP & RESTORE (ADMIN ONLY) ---
+
+@app.get("/admin/backup")
+def download_backup(
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Export all critical data as JSON"""
+    speakers = session.exec(select(Speaker)).all()
+    logs = session.exec(select(AuditLog)).all()
+    users = session.exec(select(AuthorizedUser)).all()
+    
     return {
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "user_name": user.name,
-        "roll_number": roll,
-        "is_admin": user.is_admin,
-        "role": user.role
+        "timestamp": datetime.now().isoformat(),
+        "speakers": [s.model_dump() for s in speakers],
+        "logs": [l.model_dump() for l in logs],
+        "authorized_users": [u.model_dump() for u in users]
     }
+
+@app.post("/admin/restore")
+def restore_backup(
+    backup_data: dict,
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Restore entire DB from JSON backup"""
+    try:
+        # Clear existing data (CAUTION)
+        session.exec(delete(Speaker))
+        session.exec(delete(AuditLog))
+        session.exec(delete(AuthorizedUser))
+        
+        # Restore Speakers
+        for s_data in backup_data.get("speakers", []):
+            if "last_updated" in s_data and s_data["last_updated"]:
+                s_data["last_updated"] = datetime.fromisoformat(s_data["last_updated"])
+            if s_data.get("assigned_at"):
+                s_data["assigned_at"] = datetime.fromisoformat(s_data["assigned_at"])
+            if s_data.get("due_date"):
+                s_data["due_date"] = datetime.fromisoformat(s_data["due_date"])
+            if s_data.get("last_activity"):
+                s_data["last_activity"] = datetime.fromisoformat(s_data["last_activity"])
+            session.add(Speaker(**s_data))
+            
+        # Restore Users
+        for u_data in backup_data.get("authorized_users", []):
+            session.add(AuthorizedUser(**u_data))
+            
+        # Restore Logs
+        for l_data in backup_data.get("logs", []):
+            if "timestamp" in l_data and l_data["timestamp"]:
+                l_data["timestamp"] = datetime.fromisoformat(l_data["timestamp"])
+            session.add(AuditLog(**l_data))
+            
+        session.commit()
+        return {"message": "System Restore Successful", "counts": {
+            "speakers": len(backup_data.get("speakers", [])),
+            "users": len(backup_data.get("authorized_users", [])),
+            "logs": len(backup_data.get("logs", []))
+        }}
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=f"Restore failed: {str(e)}")
 
 # Admin: Role Management
 @app.patch("/users/{roll_number}")
@@ -1081,3 +1150,150 @@ Output ONLY a JSON object with this structure:
         return brief_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/admin/ingest-ai")
+def ingest_speakers_ai(
+    request: dict, # {"raw_text": "..."}
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Parses raw text into speaker cards and auto-assigns them with duplicate detection"""
+    raw_text = request.get("raw_text")
+    if not raw_text:
+        raise HTTPException(status_code=400, detail="No text provided")
+
+    api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Perplexity API key not configured")
+
+    # Get available users for assignment
+    users = session.exec(select(AuthorizedUser)).all()
+    if not users:
+        raise HTTPException(status_code=500, detail="No users found for auto-assignment")
+    
+    user_rolls = [u.roll_number for u in users]
+
+    # Get all existing speakers for duplicate detection
+    existing_speakers = session.exec(select(Speaker)).all()
+    existing_names = {s.name.lower().strip() for s in existing_speakers}
+    existing_emails = {s.email.lower().strip() for s in existing_speakers if s.email}
+    existing_phones = {s.phone.strip() for s in existing_speakers if s.phone}
+
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    prompt = f"""Extract speaker prospects from this raw text:
+{raw_text}
+
+For each speaker, identify:
+- name (Required)
+- primary_domain (e.g. Technology, Art, Business)
+- location (City/Country)
+- email (if mentioned)
+- phone (if mentioned)
+- blurring_line_angle (1 sentence on why they fit the theme 'Blurring Lines')
+
+Output ONLY a JSON list of objects:
+[
+  {{"name": "...", "primary_domain": "...", "location": "...", "email": "...", "phone": "...", "blurring_line_angle": "..."}},
+  ...
+]"""
+
+    payload = {
+        "model": "llama-3-sonar-small-32k-online",
+        "messages": [
+            {"role": "system", "content": "You are a data extraction assistant for TEDxXLRI. Extract clean structured data from messy notes."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+        
+        # Robust extraction
+        start = content.find('[')
+        end = content.rfind(']') + 1
+        parsed_speakers = json.loads(content[start:end])
+        
+        added_count = 0
+        skipped_count = 0
+        duplicates = []
+        
+        for i, s_data in enumerate(parsed_speakers):
+            if not s_data.get("name"): 
+                continue
+            
+            # Normalize data for comparison
+            name_normalized = s_data["name"].lower().strip()
+            email_normalized = s_data.get("email", "").lower().strip() if s_data.get("email") else None
+            phone_normalized = s_data.get("phone", "").strip() if s_data.get("phone") else None
+            
+            # Check for duplicates
+            is_duplicate = False
+            duplicate_reason = ""
+            
+            # Check name match (exact)
+            if name_normalized in existing_names:
+                is_duplicate = True
+                duplicate_reason = "name"
+            
+            # Check email match
+            elif email_normalized and email_normalized in existing_emails:
+                is_duplicate = True
+                duplicate_reason = "email"
+            
+            # Check phone match
+            elif phone_normalized and phone_normalized in existing_phones:
+                is_duplicate = True
+                duplicate_reason = "phone"
+            
+            if is_duplicate:
+                skipped_count += 1
+                duplicates.append({"name": s_data["name"], "reason": duplicate_reason})
+                continue
+            
+            # Simple Round Robin Assignment
+            assigned_to = user_rolls[i % len(user_rolls)]
+            
+            new_speaker = Speaker(
+                name=s_data["name"],
+                primary_domain=s_data.get("primary_domain"),
+                location=s_data.get("location"),
+                email=s_data.get("email"),
+                phone=s_data.get("phone"),
+                blurring_line_angle=s_data.get("blurring_line_angle"),
+                assigned_to=assigned_to,
+                assigned_by="AI_INGESTION",
+                status=OutreachStatus.SCOUTED,
+                batch="AI_IMPORT_" + datetime.now().strftime("%Y-%m-%d")
+            )
+            session.add(new_speaker)
+            
+            # Update tracking sets
+            existing_names.add(name_normalized)
+            if email_normalized:
+                existing_emails.add(email_normalized)
+            if phone_normalized:
+                existing_phones.add(phone_normalized)
+            
+            added_count += 1
+            
+        session.commit()
+        
+        response_msg = f"Successfully ingested {added_count} speakers"
+        if skipped_count > 0:
+            response_msg += f" ({skipped_count} duplicates skipped)"
+        
+        return {
+            "message": response_msg, 
+            "count": added_count, 
+            "skipped": skipped_count,
+            "duplicates": duplicates
+        }
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"AI Processing failed: {str(e)}")

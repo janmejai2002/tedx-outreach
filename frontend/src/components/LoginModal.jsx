@@ -37,20 +37,20 @@ const LoginModal = ({ onLogin }) => {
 
                     <h2 className="text-2xl font-bold text-white mb-2">Restricted Access</h2>
                     <p className="text-gray-400 text-sm mb-8">
-                        Please enter your XLRI Roll Number to continue.
+                        Enter your XLRI Roll Number or First Name.
                     </p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Roll Number"
+                                placeholder="Roll No or First Name"
                                 value={rollNumber}
                                 onChange={(e) => {
                                     setRollNumber(e.target.value);
                                     setError('');
                                 }}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all text-center uppercase font-mono tracking-wider"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all text-center tracking-wider"
                             />
                         </div>
 

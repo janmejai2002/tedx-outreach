@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Users, TrendingUp, Shield, Trash2, UserPlus,
     ShieldCheck, Activity, Award, CheckSquare,
-    Palette, Building2, User
+    Palette, Building2, User, Sparkles, CheckCircle
 } from 'lucide-react';
 import { getAllUsers, updateUserRole } from '../api';
 import axios from 'axios';
@@ -132,6 +132,13 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                         {activeTab === 'users' && <motion.div layoutId="tab-admin" className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
                     </button>
                     <button
+                        onClick={() => setActiveTab('ingestion')}
+                        className={`flex-1 flex items-center justify-center gap-2 p-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'ingestion' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        <Sparkles size={14} className="text-yellow-500" /> AI Ingestion
+                        {activeTab === 'ingestion' && <motion.div layoutId="tab-admin" className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('analytics')}
                         className={`flex-1 flex items-center justify-center gap-2 p-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'analytics' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
                     >
@@ -254,6 +261,81 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                 </div>
                             </div>
                         </div>
+                    ) : activeTab === 'ingestion' ? (
+                        <div className="space-y-6">
+                            <div className="bg-gradient-to-br from-yellow-600/10 to-transparent border border-yellow-500/10 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 bg-yellow-600 rounded-xl flex items-center justify-center shadow-lg shadow-yellow-900/20">
+                                        <Sparkles className="text-white" size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-white uppercase tracking-widest">AI Master Ingestion</h3>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Paste raw text, notes, or lists to auto-generate cards</p>
+                                    </div>
+                                </div>
+                                <textarea
+                                    className="w-full h-64 bg-black border border-white/10 rounded-xl p-4 text-xs text-white focus:outline-none focus:border-yellow-500 transition-all font-mono placeholder:text-gray-700"
+                                    placeholder="Paste raw data here... e.g. 'John Doe from Bangalore, works in AI. Also Jane Smith, a creative artist from Mumbai...'"
+                                    id="ai-raw-text"
+                                ></textarea>
+                                <div className="mt-4 flex justify-between items-center">
+                                    <div className="flex items-center gap-4 text-[10px] text-gray-500 font-bold uppercase">
+                                        <span className="flex items-center gap-1"><CheckCircle size={12} className="text-green-500" /> Auto-Assignment ON</span>
+                                        <span className="flex items-center gap-1"><CheckCircle size={12} className="text-green-500" /> Topic Extraction ON</span>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            const text = document.getElementById('ai-raw-text').value;
+                                            if (!text) return alert("Please paste some text");
+                                            const btn = document.getElementById('ingest-btn');
+                                            btn.disabled = true;
+                                            btn.innerText = "Processing with AI...";
+                                            try {
+                                                const token = localStorage.getItem('tedx_token');
+                                                const res = await axios.post(`${API_URL}/admin/ingest-ai`, { raw_text: text }, {
+                                                    headers: { 'Authorization': `Bearer ${token}` }
+                                                });
+
+                                                let msg = res.data.message;
+                                                if (res.data.duplicates && res.data.duplicates.length > 0) {
+                                                    msg += "\n\nDuplicates skipped:\n";
+                                                    res.data.duplicates.forEach(d => {
+                                                        msg += `- ${d.name} (matched by ${d.reason})\n`;
+                                                    });
+                                                }
+
+                                                alert(msg);
+                                                document.getElementById('ai-raw-text').value = '';
+                                                window.location.reload();
+                                            } catch (e) {
+                                                alert("Ingestion failed: " + (e.response?.data?.detail || "Server Error"));
+                                            } finally {
+                                                btn.disabled = false;
+                                                btn.innerText = "Inject into Pipeline";
+                                            }
+                                        }}
+                                        id="ingest-btn"
+                                        className="bg-yellow-600 hover:bg-yellow-500 text-black px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-yellow-900/30"
+                                    >
+                                        Inject into Pipeline
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-white/5 border border-white/5 rounded-xl p-4">
+                                    <h4 className="text-[9px] font-black text-gray-500 uppercase mb-2">How it works</h4>
+                                    <p className="text-[10px] text-gray-400 leading-relaxed italic">
+                                        The AI scans your raw text for names, locations, and domains. It then automatically assigns them in a round-robin fashion to your authorized team members and creates cards in the 'SCOUTED' column.
+                                    </p>
+                                </div>
+                                <div className="bg-white/5 border border-white/5 rounded-xl p-4">
+                                    <h4 className="text-[9px] font-black text-gray-500 uppercase mb-2">Best Results</h4>
+                                    <p className="text-[10px] text-gray-400 leading-relaxed italic">
+                                        Include as much context as possible (e.g. "Speaker Name, Works at Google, based in NY"). The AI will even try to figure out why they fit the TEDxXLRI theme!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     ) : (
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -321,7 +403,7 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                 {/* Footer */}
                 <div className="p-4 bg-white/5 border-t border-white/5 text-center flex justify-between items-center px-10">
                     <div className="flex items-center gap-4">
-                        <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">Platform Transparency: Active</p>
+                        <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">Platform Integrity: Active</p>
                         <button
                             onClick={async () => {
                                 if (!window.confirm("Purge invalid 'NaN' cards from database?")) return;
@@ -339,6 +421,57 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                             className="text-[8px] bg-red-900/20 text-red-500 px-2 py-1 rounded border border-red-900/30 hover:bg-red-600 hover:text-white transition-all font-black uppercase"
                         >
                             Purge NaN Data
+                        </button>
+
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const token = localStorage.getItem('tedx_token');
+                                    const res = await axios.get(`${API_URL}/admin/backup`, {
+                                        headers: { 'Authorization': `Bearer ${token}` }
+                                    });
+                                    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `tedx_backup_${new Date().toISOString().split('T')[0]}.json`;
+                                    a.click();
+                                } catch (e) { alert("Backup failed"); }
+                            }}
+                            className="text-[8px] bg-blue-900/20 text-blue-400 px-2 py-1 rounded border border-blue-900/30 hover:bg-blue-600 hover:text-white transition-all font-black uppercase"
+                        >
+                            Export Backup
+                        </button>
+
+                        <input
+                            type="file"
+                            id="restore-file"
+                            className="hidden"
+                            accept=".json"
+                            onChange={async (e) => {
+                                const file = e.target.files[0];
+                                if (!file) return;
+                                if (!window.confirm("CRITICAL: This will overwrite ALL current data with this backup. Proceed?")) return;
+                                const reader = new FileReader();
+                                reader.onload = async (event) => {
+                                    try {
+                                        const data = JSON.parse(event.target.result);
+                                        const token = localStorage.getItem('tedx_token');
+                                        await axios.post(`${API_URL}/admin/restore`, data, {
+                                            headers: { 'Authorization': `Bearer ${token}` }
+                                        });
+                                        alert("System Restored Successfully");
+                                        window.location.reload();
+                                    } catch (err) { alert("Restore failed: Invalid file."); }
+                                };
+                                reader.readAsText(file);
+                            }}
+                        />
+                        <button
+                            onClick={() => document.getElementById('restore-file').click()}
+                            className="text-[8px] bg-orange-900/20 text-orange-400 px-2 py-1 rounded border border-orange-900/30 hover:bg-orange-600 hover:text-white transition-all font-black uppercase"
+                        >
+                            Import Restore
                         </button>
                     </div>
                     <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">TEDxXLRI Hub Management Terminal</p>
