@@ -24,6 +24,9 @@ from auth_utils import create_access_token, verify_token, verify_admin, get_curr
 class LoginRequest(BaseModel):
     roll_number: str
 
+class UserLogin(BaseModel):
+    roll_number: str
+
 class RefineRequest(BaseModel):
     current_draft: str
     instruction: str

@@ -129,9 +129,18 @@ const Board = ({ onSwitchMode }) => {
 
     // Quest System
     const [quests, setQuests] = useState([
-        { id: 1, title: 'Scout 3 Speakers', target: 3, current: 0, reward: 50, completed: false },
-        { id: 2, title: 'Move to LOCKED', target: 1, current: 0, reward: 200, completed: false }
+        { id: 1, title: 'Scout 3 Speakers', target: 3, current: 0, reward: 50, completed: false, dismissed: false },
+        { id: 2, title: 'Move to LOCKED', target: 1, current: 0, reward: 200, completed: false, dismissed: false },
+        { id: 3, title: 'Add 5 Emails Today', target: 5, current: 0, reward: 100, completed: false, dismissed: false, daily: true },
+        { id: 4, title: 'Research 3 Profiles', target: 3, current: 0, reward: 75, completed: false, dismissed: false }
     ]);
+
+    // Dark Psychology Gamification
+    const [streak, setStreak] = useState(parseInt(localStorage.getItem('tedx_streak') || '0'));
+    const [lastActiveDate, setLastActiveDate] = useState(localStorage.getItem('tedx_last_active') || new Date().toDateString());
+    const [dailyGoal, setDailyGoal] = useState({ target: 5, current: 0 }); // 5 actions per day
+    const [teamRank, setTeamRank] = useState(null);
+    const [showStreakWarning, setShowStreakWarning] = useState(false);
 
     // Achievements & Activity
     const [achievements, setAchievements] = useState([]);
@@ -1015,34 +1024,114 @@ const Board = ({ onSwitchMode }) => {
                 )}
             </AnimatePresence>
 
-            {/* Quests Overlay - Floating Bottom Right */}
+            {/* Enhanced Quests Overlay with Dismissible Cards */}
             <div className="fixed bottom-6 right-8 z-40 flex flex-col gap-3">
                 <AnimatePresence>
-                    {quests.filter(q => !q.completed).map(quest => (
+                    {quests.filter(q => !q.completed && !q.dismissed).map(quest => (
                         <motion.div
                             key={quest.id}
                             initial={{ x: 300, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: 300, opacity: 0 }}
-                            className="bg-black/80 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl w-64 group hover:border-red-500/50 transition-colors"
+                            className="bg-black/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl w-72 group hover:border-red-500/50 transition-colors relative"
                         >
+                            <button
+                                onClick={() => {
+                                    setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, dismissed: true } : q));
+                                }}
+                                className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-gray-500 hover:text-white transition-all"
+                                title="Dismiss"
+                            >
+                                <X size={12} />
+                            </button>
                             <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter flex items-center gap-2">
-                                    <Target size={12} className="text-red-500" /> Active Quest
+                                    <Target size={12} className="text-red-500" /> {quest.daily ? '🔥 Daily Quest' : 'Active Quest'}
                                 </h4>
                                 <span className="text-[10px] bg-red-600/20 text-red-400 px-2 py-0.5 rounded-full font-bold">+{quest.reward} XP</span>
                             </div>
                             <p className="text-sm font-medium text-white mb-2">{quest.title}</p>
-                            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                                <motion.div
-                                    className="h-full bg-red-600 shadow-[0_0_10px_rgba(230,43,30,0.5)]"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${(quest.current / quest.target) * 100}%` }}
-                                    transition={{ duration: 1 }}
-                                />
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <motion.div
+                                        className="h-full bg-gradient-to-r from-red-600 to-orange-500 shadow-[0_0_10px_rgba(230,43,30,0.5)]"
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${(quest.current / quest.target) * 100}%` }}
+                                        transition={{ duration: 1 }}
+                                    />
+                                </div>
+                                <span className="text-[9px] font-black text-gray-500">{quest.current}/{quest.target}</span>
                             </div>
+                            {quest.daily && (
+                                <p className="text-[8px] text-orange-500 font-bold uppercase tracking-wider mt-1">⏰ Resets at midnight</p>
+                            )}
                         </motion.div>
                     ))}
+                </AnimatePresence>
+
+                {/* Streak Counter - Dark Psychology: Loss Aversion */}
+                <AnimatePresence>
+                    {streak > 0 && (
+                        <motion.div
+                            initial={{ x: 300, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            className="bg-gradient-to-br from-orange-600/20 to-red-600/20 backdrop-blur-md border border-orange-500/30 p-4 rounded-xl shadow-2xl w-72"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-[10px] font-bold text-orange-400 uppercase tracking-tighter flex items-center gap-2">
+                                    🔥 Streak
+                                </h4>
+                                <button
+                                    onClick={() => setShowStreakWarning(true)}
+                                    className="text-[8px] text-gray-500 hover:text-white"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="text-3xl font-black text-orange-500">{streak}</div>
+                                <div>
+                                    <p className="text-xs font-bold text-white">Day Streak!</p>
+                                    <p className="text-[9px] text-gray-400">Don't break it! 💪</p>
+                                </div>
+                            </div>
+                            {streak >= 3 && (
+                                <div className="mt-2 pt-2 border-t border-white/10">
+                                    <p className="text-[8px] text-yellow-500 font-bold uppercase">⚡ {streak >= 7 ? 'LEGENDARY' : 'ON FIRE'} STREAK BONUS: +{streak * 10}% XP</p>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Daily Goal Progress - Urgency & Scarcity */}
+                <AnimatePresence>
+                    {dailyGoal.current < dailyGoal.target && (
+                        <motion.div
+                            initial={{ x: 300, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            className="bg-black/90 backdrop-blur-md border border-blue-500/30 p-4 rounded-xl shadow-2xl w-72"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">
+                                    📊 Today's Goal
+                                </h4>
+                                <span className="text-[9px] text-gray-500 font-mono">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                                    <motion.div
+                                        className="h-full bg-gradient-to-r from-blue-600 to-cyan-500"
+                                        animate={{ width: `${(dailyGoal.current / dailyGoal.target) * 100}%` }}
+                                    />
+                                </div>
+                                <span className="text-[10px] font-black text-blue-400">{dailyGoal.current}/{dailyGoal.target}</span>
+                            </div>
+                            <p className="text-[9px] text-gray-400">
+                                {dailyGoal.target - dailyGoal.current} more actions to maintain streak
+                            </p>
+                        </motion.div>
+                    )}
                 </AnimatePresence>
             </div>
 
