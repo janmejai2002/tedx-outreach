@@ -114,7 +114,7 @@ async def lifespan(app: FastAPI):
         user_check = session.exec(select(AuthorizedUser)).first()
         if not user_check:
             print("Initializing authorized users...")
-            from migrate_users import INITIAL_USERS
+            from backend.migrations.migrate_users import INITIAL_USERS
             for roll, (name, is_admin) in INITIAL_USERS.items():
                 user = AuthorizedUser(
                     roll_number=roll,
