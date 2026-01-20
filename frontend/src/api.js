@@ -101,6 +101,14 @@ export const bulkUpdateSpeakers = async (data) => {
     return response.data;
 };
 
+export const bulkDeleteSpeakers = async (data) => {
+    const response = await axios.delete(`${API_URL}/speakers/bulk`, {
+        data: data,
+        headers: getAuthHeader()
+    });
+    return response.data;
+};
+
 // Sponsor APIs
 export const getSponsors = async (params = {}) => {
     const response = await axios.get(`${API_URL}/sponsors`, {

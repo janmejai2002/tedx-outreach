@@ -334,6 +334,29 @@ def add_authorized_user(
     
     return {"message": "User added successfully", "user": new_user}
 
+@app.post("/admin/purge-invalid")
+def purge_invalid_data(
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Delete speakers with 'NaN' or empty names/IDs (Admin only)"""
+    # Delete speakers with name "NaN" or empty
+    invalid_speakers = session.exec(
+        select(Speaker).where(
+            (Speaker.name == 'NaN') | 
+            (Speaker.name == '') | 
+            (Speaker.name == 'None')
+        )
+    ).all()
+    
+    count = 0
+    for s in invalid_speakers:
+        session.delete(s)
+        count += 1
+    
+    session.commit()
+    return {"message": f"Purged {count} invalid records"}
+
 @app.delete("/admin/users/{roll_number}")
 def remove_authorized_user(
     roll_number: str,
@@ -459,9 +482,19 @@ def bulk_update_speakers(
             modified = True
             
         if 'assigned_to' in update_dict:
-            db_speaker.assigned_to = update_dict['assigned_to']
-            db_speaker.assigned_by = user_name
-            db_speaker.assigned_at = func.now()
+            # Handle string "null" from frontend if it happens
+            target = update_dict['assigned_to']
+            if target == "null" or target is None:
+                db_speaker.assigned_to = None
+                db_speaker.assigned_by = None
+                db_speaker.assigned_at = None
+            elif str(target).lower() == 'nan':
+                # Skip NaN assignments strictly
+                pass
+            else:
+                db_speaker.assigned_to = target
+                db_speaker.assigned_by = user_name
+                db_speaker.assigned_at = func.now()
             modified = True
             
         if 'is_bounty' in update_dict:
@@ -486,6 +519,34 @@ def bulk_update_speakers(
         session.commit()
         
     return {"message": f"Successfully updated {count} speakers", "count": count}
+
+@app.delete("/speakers/bulk")
+def bulk_delete_speakers(
+    delete_data: BulkUpdate, # Reusing BulkUpdate because it just contains a list of IDs
+    session: Session = Depends(get_session),
+    user_name: str = Depends(get_current_user_name),
+    admin: dict = Depends(verify_admin)
+):
+    """Delete multiple speakers at once (Admin Only)"""
+    count = 0
+    for speaker_id in delete_data.ids:
+        db_speaker = session.get(Speaker, speaker_id)
+        if db_speaker:
+            session.delete(db_speaker)
+            count += 1
+            
+    session.commit()
+    
+    if count > 0:
+        log = AuditLog(
+            user_name=user_name,
+            action="BULK_DELETE",
+            details=f"Deleted {count} speakers (IDs: {delete_data.ids[:5]}...)"
+        )
+        session.add(log)
+        session.commit()
+        
+    return {"message": f"Successfully deleted {count} speakers", "count": count}
 
 @app.patch("/speakers/{speaker_id}", response_model=Speaker)
 def update_speaker(

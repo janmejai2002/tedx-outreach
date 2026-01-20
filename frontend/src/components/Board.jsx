@@ -142,6 +142,14 @@ const Board = ({ onSwitchMode }) => {
     const [showFocusMode, setShowFocusMode] = useState(false);
     const [sessionAdds, setSessionAdds] = useState([]);
     const [showHub, setShowHub] = useState(false);
+    const [viewModes, setViewModes] = useState({}); // columnId -> 'kanban' | 'gallery'
+
+    const toggleViewMode = (colId) => {
+        setViewModes(prev => ({
+            ...prev,
+            [colId]: prev[colId] === 'gallery' ? 'kanban' : 'gallery'
+        }));
+    };
 
     // Bulk Selection
     const [isSelectMode, setIsSelectMode] = useState(false);
@@ -409,6 +417,30 @@ const Board = ({ onSwitchMode }) => {
         }
     };
 
+    const handleBulkDelete = async () => {
+        const validIds = Array.from(selectedIds)
+            .map(id => parseInt(id))
+            .filter(id => !isNaN(id));
+
+        if (validIds.length === 0) return;
+        if (!window.confirm(`PERMANENTLY DELETE ${validIds.length} leads? This cannot be undone.`)) return;
+
+        setLoading(true);
+        try {
+            const { bulkDeleteSpeakers } = await import('../api');
+            await bulkDeleteSpeakers({ ids: validIds });
+            await fetchSpeakers();
+            setSelectedIds(new Set());
+            setIsSelectMode(false);
+            alert(`Successfully deleted ${validIds.length} speakers.`);
+        } catch (error) {
+            console.error("Bulk delete failed", error);
+            alert(`Failed to delete: ${error.response?.data?.detail || error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleBulkDivide = async () => {
         if (targetUsers.size === 0) return alert("Select at least one user to divide among");
 
@@ -422,9 +454,14 @@ const Board = ({ onSwitchMode }) => {
 
         setLoading(true);
         try {
-            const users = Array.from(targetUsers);
+            const users = Array.from(targetUsers).filter(u => u && String(u).toLowerCase() !== 'nan');
             const totalLeads = validIds.length;
             const userCount = users.length;
+
+            if (userCount === 0) {
+                setLoading(false);
+                return alert("No valid target users selected.");
+            }
 
             // Calculate baseline chunk size
             const baseSize = Math.floor(totalLeads / userCount);
@@ -830,6 +867,8 @@ const Board = ({ onSwitchMode }) => {
                                     isSelectMode={isSelectMode}
                                     selectedIds={selectedIds}
                                     onToggleSelect={toggleSelection}
+                                    viewMode={viewModes[key] || 'kanban'}
+                                    onToggleView={() => toggleViewMode(key)}
                                 />
                             </div>
                         ))}
@@ -1052,6 +1091,23 @@ const Board = ({ onSwitchMode }) => {
                                 <Target size={12} /> Bounty
                             </button>
 
+                            <button
+                                onClick={() => handleBulkUpdate({ assigned_to: null })}
+                                className="h-9 px-4 bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-orange-500/20"
+                                title="Clear Assignments (Reset Division)"
+                            >
+                                <Undo size={12} /> Reset
+                            </button>
+
+                            {currentUser?.isAdmin && (
+                                <button
+                                    onClick={handleBulkDelete}
+                                    className="h-9 px-4 bg-gray-600/10 hover:bg-black text-gray-400 hover:text-red-500 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
+                                >
+                                    <Trash2 size={12} /> Delete
+                                </button>
+                            )}
+
                             <select
                                 onChange={(e) => e.target.value && handleBulkUpdate({ status: e.target.value })}
                                 className="h-9 px-4 bg-white/5 border border-white/5 hover:border-white/20 rounded-xl text-[10px] font-black uppercase text-gray-400 focus:outline-none transition-all cursor-pointer"
@@ -1153,20 +1209,27 @@ const Board = ({ onSwitchMode }) => {
     );
 };
 
-const Column = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectMode, selectedIds, onToggleSelect }) => {
+const Column = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectMode, selectedIds, onToggleSelect, viewMode = 'kanban', onToggleView }) => {
     const { setNodeRef, isOver } = useDroppable({ id });
 
     return (
-        <div ref={setNodeRef} className={`w-80 flex-shrink-0 flex flex-col rounded-xl transition-colors duration-300 ${isOver ? 'bg-white/[0.05] border border-red-500/30' : 'bg-transparent'}`}>
+        <div ref={setNodeRef} className={`${viewMode === 'gallery' ? 'w-full' : 'w-80'} flex-shrink-0 flex flex-col rounded-xl transition-all duration-300 ${isOver ? 'bg-white/[0.05] border border-red-500/30' : 'bg-transparent'}`}>
             <div className="p-4 flex items-center justify-between sticky top-0 bg-[#050505]/95 backdrop-blur-sm z-10 border-b border-white/5 rounded-t-xl">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${id === 'LOCKED' ? 'bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]' : 'bg-gray-600'}`} />
-                    <h3 className="font-bold text-sm tracking-wide text-gray-200">{title}</h3>
+                    <h3 className="font-bold text-sm tracking-wide text-gray-200 uppercase tracking-tighter">{title}</h3>
+                    <button
+                        onClick={onToggleView}
+                        className="p-1 hover:bg-white/10 rounded-md text-gray-600 hover:text-white transition-all ml-1"
+                        title={viewMode === 'gallery' ? "Switch to Kanban" : "Switch to Gallery"}
+                    >
+                        {viewMode === 'gallery' ? <LayoutGrid size={12} /> : <Search size={12} />}
+                    </button>
                 </div>
                 <span className="text-xs font-bold text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">{speakers.length}</span>
             </div>
 
-            <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
+            <div className={`flex-1 p-3 overflow-y-auto custom-scrollbar ${viewMode === 'gallery' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-3'}`}>
                 <SortableContext items={speakers.map(s => s.id)} strategy={verticalListSortingStrategy}>
                     {speakers.map(speaker => (
                         <SpeakerCard
@@ -1177,11 +1240,12 @@ const Column = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectM
                             isSelectMode={isSelectMode}
                             isSelected={selectedIds.has(speaker.id)}
                             onToggleSelect={onToggleSelect}
+                            compact={viewMode === 'gallery'}
                         />
                     ))}
                 </SortableContext>
                 {speakers.length === 0 && (
-                    <div className="h-24 border-2 border-dashed border-white/5 rounded-xl flex items-center justify-center text-xs text-gray-700 font-medium">
+                    <div className="h-24 border-2 border-dashed border-white/5 rounded-xl flex items-center justify-center text-xs text-gray-700 font-medium col-span-full">
                         {isOver ? "Drop to update status" : "Empty"}
                     </div>
                 )}

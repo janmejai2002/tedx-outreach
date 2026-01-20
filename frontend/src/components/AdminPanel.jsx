@@ -152,18 +152,18 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                 <form onSubmit={handleAddUser} className="grid grid-cols-1 md:grid-cols-5 gap-4">
                                     <input
                                         type="text"
-                                        placeholder="Roll (b25349)"
-                                        value={newUser.roll_number}
-                                        onChange={e => setNewUser({ ...newUser, roll_number: e.target.value })}
-                                        className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-red-500 transition-all font-mono"
-                                        required
-                                    />
-                                    <input
-                                        type="text"
                                         placeholder="Full Name"
                                         value={newUser.name}
                                         onChange={e => setNewUser({ ...newUser, name: e.target.value })}
                                         className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-red-500 transition-all"
+                                        required
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Roll (b25349)"
+                                        value={newUser.roll_number}
+                                        onChange={e => setNewUser({ ...newUser, roll_number: e.target.value })}
+                                        className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-red-500 transition-all font-mono"
                                         required
                                     />
                                     <select
@@ -211,12 +211,12 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                     {users.map(user => (
                                         <div key={user.roll_number} className="grid grid-cols-6 p-4 items-center border-b border-white/5 hover:bg-white/5 transition-colors group">
                                             <div className="col-span-2 flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center font-black text-[10px] text-gray-500 border border-white/5">
-                                                    {user.name[0]}
+                                                <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-black text-[10px] text-white border border-white/5">
+                                                    {user.name ? user.name[0] : '?'}
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-bold text-white">{user.name}</p>
-                                                    <p className="text-[9px] font-mono text-gray-600 uppercase">{user.roll_number}</p>
+                                                    <p className="text-[9px] font-mono text-gray-400 uppercase tracking-widest">{user.roll_number}</p>
                                                 </div>
                                             </div>
                                             <div>
@@ -320,7 +320,27 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
 
                 {/* Footer */}
                 <div className="p-4 bg-white/5 border-t border-white/5 text-center flex justify-between items-center px-10">
-                    <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">Platform Transparency: Active</p>
+                    <div className="flex items-center gap-4">
+                        <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">Platform Transparency: Active</p>
+                        <button
+                            onClick={async () => {
+                                if (!window.confirm("Purge invalid 'NaN' cards from database?")) return;
+                                try {
+                                    const token = localStorage.getItem('tedx_token');
+                                    await axios.post(`${API_URL}/admin/purge-invalid`, {}, {
+                                        headers: { 'Authorization': `Bearer ${token}` }
+                                    });
+                                    alert("Invalid cards purged.");
+                                    window.location.reload();
+                                } catch (e) {
+                                    alert("Purge failed.");
+                                }
+                            }}
+                            className="text-[8px] bg-red-900/20 text-red-500 px-2 py-1 rounded border border-red-900/30 hover:bg-red-600 hover:text-white transition-all font-black uppercase"
+                        >
+                            Purge NaN Data
+                        </button>
+                    </div>
                     <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">TEDxXLRI Hub Management Terminal</p>
                 </div>
             </motion.div>

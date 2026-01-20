@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { LayoutGrid, MapPin, Mail, Award, CheckCircle, Target } from 'lucide-react';
 
-const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelected, onToggleSelect }) => {
+const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelected, onToggleSelect, compact = false }) => {
     const {
         attributes,
         listeners,
@@ -41,12 +41,13 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
             {...listeners}
             layoutId={speaker.id}
             onClick={handleClick}
-            className={`glass glass-hover p-4 rounded-xl mb-3 cursor-pointer group border-l-4 relative overflow-hidden transition-all 
+            className={`glass glass-hover ${compact ? 'p-6 min-h-[160px]' : 'p-4 mb-3'} rounded-xl cursor-pointer group border-l-4 relative overflow-hidden transition-all 
                 ${speaker.is_bounty ? 'border-red-600 bg-red-900/10' : 'border-l-transparent hover:border-l-red-500'}
                 ${isSelected ? 'ring-2 ring-red-500 bg-red-500/5' : ''}
+                ${compact ? 'w-full' : ''}
             `}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
         >
             {/* Selection Checkbox Overlay */}
             {isSelectMode && (
