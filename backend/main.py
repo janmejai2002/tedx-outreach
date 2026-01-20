@@ -438,51 +438,6 @@ def read_speaker(speaker_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Speaker not found")
     return speaker
 
-@app.patch("/speakers/{speaker_id}", response_model=Speaker)
-def update_speaker(
-    speaker_id: int, 
-    speaker_update: SpeakerUpdate, 
-    session: Session = Depends(get_session), 
-    user_name: str = Depends(get_current_user_name)
-):
-    db_speaker = session.get(Speaker, speaker_id)
-    if not db_speaker:
-        raise HTTPException(status_code=404, detail="Speaker not found")
-    
-    old_status = db_speaker.status
-    speaker_data = speaker_update.model_dump(exclude_unset=True)
-    for key, value in speaker_data.items():
-        setattr(db_speaker, key, value)
-        
-    db_speaker.last_updated = func.now()
-    session.add(db_speaker)
-    
-    # Audit Log
-    if user_name:
-        action = "UPDATE"
-        details = f"Updated profile for {db_speaker.name}"
-        
-        # Check specific important changes
-        if 'status' in speaker_data and old_status != db_speaker.status:
-            action = "MOVE"
-            details = f"Moved {db_speaker.name} to {db_speaker.status.value}"
-        elif 'is_bounty' in speaker_data:
-            action = "BOUNTY"
-            status_str = "Marked" if db_speaker.is_bounty else "Unmarked"
-            details = f"{status_str} {db_speaker.name} as Bounty"
-            
-        log = AuditLog(
-            user_name=user_name,
-            action=action,
-            details=details,
-            speaker_id=speaker_id
-        )
-        session.add(log)
-    
-    session.commit()
-    session.refresh(db_speaker)
-    return db_speaker
-
 @app.patch("/speakers/bulk")
 def bulk_update_speakers(
     update_data: BulkUpdate,
@@ -531,6 +486,53 @@ def bulk_update_speakers(
         session.commit()
         
     return {"message": f"Successfully updated {count} speakers", "count": count}
+
+@app.patch("/speakers/{speaker_id}", response_model=Speaker)
+def update_speaker(
+    speaker_id: int, 
+    speaker_update: SpeakerUpdate, 
+    session: Session = Depends(get_session), 
+    user_name: str = Depends(get_current_user_name)
+):
+    db_speaker = session.get(Speaker, speaker_id)
+    if not db_speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+    
+    old_status = db_speaker.status
+    speaker_data = speaker_update.model_dump(exclude_unset=True)
+    for key, value in speaker_data.items():
+        setattr(db_speaker, key, value)
+        
+    db_speaker.last_updated = func.now()
+    session.add(db_speaker)
+    
+    # Audit Log
+    if user_name:
+        action = "UPDATE"
+        details = f"Updated profile for {db_speaker.name}"
+        
+        # Check specific important changes
+        if 'status' in speaker_data and old_status != db_speaker.status:
+            action = "MOVE"
+            details = f"Moved {db_speaker.name} to {db_speaker.status.value}"
+        elif 'is_bounty' in speaker_data:
+            action = "BOUNTY"
+            status_str = "Marked" if db_speaker.is_bounty else "Unmarked"
+            details = f"{status_str} {db_speaker.name} as Bounty"
+            
+        log = AuditLog(
+            user_name=user_name,
+            action=action,
+            details=details,
+            speaker_id=speaker_id
+        )
+        session.add(log)
+    
+    session.commit()
+    session.refresh(db_speaker)
+    return db_speaker
+
+
 
 @app.post("/generate-email")
 def generate_email(
