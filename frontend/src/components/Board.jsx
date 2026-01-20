@@ -162,7 +162,7 @@ const Board = ({ onSwitchMode }) => {
     };
 
     const handleSelectAll = () => {
-        const allIds = filteredSpeakers.map(s => s.id);
+        const allIds = filteredSpeakers.map(s => s.id).filter(id => id !== null && id !== undefined);
         setSelectedIds(new Set(allIds));
     };
 
@@ -384,11 +384,15 @@ const Board = ({ onSwitchMode }) => {
     };
 
     const handleBulkUpdate = async (updates) => {
-        if (selectedIds.size === 0) return;
+        const validIds = Array.from(selectedIds)
+            .map(id => parseInt(id))
+            .filter(id => !isNaN(id));
+
+        if (validIds.length === 0) return;
         setLoading(true);
         try {
             await bulkUpdateSpeakers({
-                ids: Array.from(selectedIds).map(id => Number(id)),
+                ids: validIds,
                 ...updates
             });
             await fetchSpeakers();
@@ -408,14 +412,19 @@ const Board = ({ onSwitchMode }) => {
     const handleBulkDivide = async () => {
         if (targetUsers.size === 0) return alert("Select at least one user to divide among");
 
+        const validIds = Array.from(selectedIds)
+            .map(id => parseInt(id))
+            .filter(id => !isNaN(id));
+
+        if (validIds.length === 0) return alert("No valid leads selected");
+
         setLoading(true);
         try {
-            const ids = Array.from(selectedIds);
             const users = Array.from(targetUsers);
-            const chunkSize = Math.ceil(ids.length / users.length);
+            const chunkSize = Math.ceil(validIds.length / users.length);
 
             for (let i = 0; i < users.length; i++) {
-                const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+                const chunk = validIds.slice(i * chunkSize, (i + 1) * chunkSize);
                 if (chunk.length > 0) {
                     await bulkUpdateSpeakers({
                         ids: chunk,
