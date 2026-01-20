@@ -128,7 +128,7 @@ const Board = ({ onSwitchMode }) => {
                     setUserXP(user.xp || 0);
 
                     // Sync Admin status in case it changed
-                    if (user.is_admin || user.role === 'ADMIN') {
+                    if ((user.is_admin || user.role === 'ADMIN') && !currentUser.isAdmin) {
                         setCurrentUser(prev => ({ ...prev, isAdmin: true }));
                         const saved = JSON.parse(localStorage.getItem('tedx_user_obj') || '{}');
                         saved.isAdmin = true;
