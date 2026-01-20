@@ -252,6 +252,8 @@ Proposed:
 
 ### P2 - Medium (This Month):
 1. ✅ Implement missing features (Sprint Deadline UI, Creative Requests) (Completed)
+2. ✅ Fix Backend Startup Crash (Fixed import path in main.py)
+3. ✅ Fix CORS for Vercel Frontend (Added Vercel domains to allowed origins)
 2. Add unit tests
 3. Set up CI/CD
 4. Add logging and monitoring
