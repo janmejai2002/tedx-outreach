@@ -76,7 +76,7 @@ async def generate_email(
     Event Personality & Context:
     - Event: TEDxXLRI 2026
     - Campus: XLRI Delhi-NCR (India's premier and oldest management institute).
-    - Audience: 500+ ambitious MBA students, future business leaders, and CXOs.
+    - Audience: 100+ ambitious MBA students, future business leaders, and CXOs.
     - Global Reach: The talk will be professionally recorded and featured on the global TEDx YouTube channel.
     - Theme: 'The Blurring Line' (Exploring the dissolving boundaries between technology, humanity, and business in 2025/2026).
     - Logistics: TEDxXLRI will provide full coverage for travel and deluxe accommodation.

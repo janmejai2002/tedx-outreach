@@ -181,7 +181,11 @@ async def limit_request_size(request, call_next):
 
 @app.get("/healthz")
 def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "version": "1.0.4",
+        "last_deploy": "2026-01-21 02:32:00"
+    }
 
 @app.get("/logs")
 def get_global_logs(
