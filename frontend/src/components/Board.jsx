@@ -273,6 +273,17 @@ const Board = ({ onSwitchMode }) => {
         }
     }, [currentUser, filterMode, searchTerm]);
 
+    // Hourly refresh for bounty board
+    useEffect(() => {
+        if (currentUser) {
+            const hourlyRefresh = setInterval(() => {
+                fetchSpeakers();
+                console.log('Hourly refresh: Speakers updated');
+            }, 3600000); // 1 hour = 3600000ms
+            return () => clearInterval(hourlyRefresh);
+        }
+    }, [currentUser]);
+
     useEffect(() => {
         if (!localStorage.getItem('tedx_tour_completed')) {
             setShowTour(true);
@@ -1005,6 +1016,15 @@ const Board = ({ onSwitchMode }) => {
                     target: 12 // Adjusted target for a team
                 }}
             />
+
+            {/* Admin Panel */}
+            {showAdminPanel && (
+                <AdminPanel
+                    isOpen={showAdminPanel}
+                    onClose={() => setShowAdminPanel(false)}
+                    currentUser={currentUser}
+                />
+            )}
 
             {/* Sidebar Activity Feed */}
             <AnimatePresence>
