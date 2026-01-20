@@ -28,8 +28,8 @@ import confetti from 'canvas-confetti';
 // New Granular Workflow
 const SECTIONS = {
     SCOUTED: 'Scouted',
-    EMAIL_ADDED: 'Email Added 📧',
     RESEARCHED: 'Researched 🔍',
+    EMAIL_ADDED: 'Email Added 📧',
     DRAFTED: 'Drafted 🤖',
     CONTACT_INITIATED: 'Contact Sent 📨',
     CONNECTED: 'Connected 🤝',
@@ -1044,7 +1044,26 @@ const Board = ({ onSwitchMode }) => {
             </AnimatePresence>
 
             {/* Enhanced Quests Overlay with Dismissible Cards */}
-            <div className="fixed bottom-6 right-8 z-40 flex flex-col gap-3">
+            <div className="fixed bottom-6 right-8 z-40 flex flex-col gap-2">
+                {/* Clear All Button */}
+                <AnimatePresence>
+                    {(quests.filter(q => !q.completed && !q.dismissed).length > 0 || streak > 0 || dailyGoal.current < dailyGoal.target) && (
+                        <motion.button
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            onClick={() => {
+                                setQuests(prev => prev.map(q => ({ ...q, dismissed: true })));
+                                setStreak(0);
+                                localStorage.setItem('user_streak', '0');
+                            }}
+                            className="self-end px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[9px] font-bold text-gray-500 hover:text-white transition-all flex items-center gap-1.5"
+                        >
+                            <X size={10} /> Clear All
+                        </motion.button>
+                    )}
+                </AnimatePresence>
+
                 <AnimatePresence>
                     {quests.filter(q => !q.completed && !q.dismissed).map(quest => (
                         <motion.div
@@ -1052,37 +1071,37 @@ const Board = ({ onSwitchMode }) => {
                             initial={{ x: 300, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: 300, opacity: 0 }}
-                            className="bg-black/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl w-72 group hover:border-red-500/50 transition-colors relative"
+                            className="bg-black/90 backdrop-blur-md border border-white/10 p-3 rounded-lg shadow-xl w-60 group hover:border-red-500/50 transition-colors relative"
                         >
                             <button
                                 onClick={() => {
                                     setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, dismissed: true } : q));
                                 }}
-                                className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-gray-500 hover:text-white transition-all"
+                                className="absolute top-1.5 right-1.5 w-4 h-4 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-gray-500 hover:text-white transition-all"
                                 title="Dismiss"
                             >
-                                <X size={12} />
+                                <X size={10} />
                             </button>
-                            <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter flex items-center gap-2">
-                                    <Target size={12} className="text-red-500" /> {quest.daily ? '🔥 Daily Quest' : 'Active Quest'}
+                            <div className="flex items-center justify-between mb-1.5">
+                                <h4 className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
+                                    <Target size={10} className="text-red-500" /> {quest.daily ? '🔥 Daily' : 'Quest'}
                                 </h4>
-                                <span className="text-[10px] bg-red-600/20 text-red-400 px-2 py-0.5 rounded-full font-bold">+{quest.reward} XP</span>
+                                <span className="text-[9px] bg-red-600/20 text-red-400 px-1.5 py-0.5 rounded-full font-bold">+{quest.reward}</span>
                             </div>
-                            <p className="text-sm font-medium text-white mb-2">{quest.title}</p>
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <p className="text-xs font-medium text-white mb-1.5">{quest.title}</p>
+                            <div className="flex items-center gap-1.5 mb-1">
+                                <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
                                     <motion.div
-                                        className="h-full bg-gradient-to-r from-red-600 to-orange-500 shadow-[0_0_10px_rgba(230,43,30,0.5)]"
+                                        className="h-full bg-gradient-to-r from-red-600 to-orange-500 shadow-[0_0_8px_rgba(230,43,30,0.4)]"
                                         initial={{ width: 0 }}
                                         animate={{ width: `${(quest.current / quest.target) * 100}%` }}
                                         transition={{ duration: 1 }}
                                     />
                                 </div>
-                                <span className="text-[9px] font-black text-gray-500">{quest.current}/{quest.target}</span>
+                                <span className="text-[8px] font-black text-gray-500">{quest.current}/{quest.target}</span>
                             </div>
                             {quest.daily && (
-                                <p className="text-[8px] text-orange-500 font-bold uppercase tracking-wider mt-1">⏰ Resets at midnight</p>
+                                <p className="text-[7px] text-orange-500 font-bold uppercase tracking-wider">⏰ Resets midnight</p>
                             )}
                         </motion.div>
                     ))}
@@ -1094,29 +1113,32 @@ const Board = ({ onSwitchMode }) => {
                         <motion.div
                             initial={{ x: 300, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
-                            className="bg-gradient-to-br from-orange-600/20 to-red-600/20 backdrop-blur-md border border-orange-500/30 p-4 rounded-xl shadow-2xl w-72"
+                            className="bg-gradient-to-br from-orange-600/20 to-red-600/20 backdrop-blur-md border border-orange-500/30 p-3 rounded-lg shadow-xl w-60"
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-[10px] font-bold text-orange-400 uppercase tracking-tighter flex items-center gap-2">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <h4 className="text-[9px] font-bold text-orange-400 uppercase tracking-tighter flex items-center gap-1.5">
                                     🔥 Streak
                                 </h4>
                                 <button
-                                    onClick={() => setShowStreakWarning(true)}
+                                    onClick={() => {
+                                        setStreak(0);
+                                        localStorage.setItem('user_streak', '0');
+                                    }}
                                     className="text-[8px] text-gray-500 hover:text-white"
                                 >
-                                    <X size={12} />
+                                    <X size={10} />
                                 </button>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <div className="text-3xl font-black text-orange-500">{streak}</div>
+                            <div className="flex items-center gap-2">
+                                <div className="text-2xl font-black text-orange-500">{streak}</div>
                                 <div>
-                                    <p className="text-xs font-bold text-white">Day Streak!</p>
-                                    <p className="text-[9px] text-gray-400">Don't break it! 💪</p>
+                                    <p className="text-[10px] font-bold text-white">Day Streak!</p>
+                                    <p className="text-[8px] text-gray-400">Don't break it! 💪</p>
                                 </div>
                             </div>
                             {streak >= 3 && (
-                                <div className="mt-2 pt-2 border-t border-white/10">
-                                    <p className="text-[8px] text-yellow-500 font-bold uppercase">⚡ {streak >= 7 ? 'LEGENDARY' : 'ON FIRE'} STREAK BONUS: +{streak * 10}% XP</p>
+                                <div className="mt-1.5 pt-1.5 border-t border-white/10">
+                                    <p className="text-[7px] text-yellow-500 font-bold uppercase">⚡ {streak >= 7 ? 'LEGENDARY' : 'ON FIRE'} +{streak * 10}% XP</p>
                                 </div>
                             )}
                         </motion.div>
@@ -1129,25 +1151,25 @@ const Board = ({ onSwitchMode }) => {
                         <motion.div
                             initial={{ x: 300, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
-                            className="bg-black/90 backdrop-blur-md border border-blue-500/30 p-4 rounded-xl shadow-2xl w-72"
+                            className="bg-black/90 backdrop-blur-md border border-blue-500/30 p-3 rounded-lg shadow-xl w-60"
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <h4 className="text-[9px] font-bold text-blue-400 uppercase tracking-tighter">
                                     📊 Today's Goal
                                 </h4>
-                                <span className="text-[9px] text-gray-500 font-mono">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="text-[8px] text-gray-500 font-mono">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                                     <motion.div
                                         className="h-full bg-gradient-to-r from-blue-600 to-cyan-500"
                                         animate={{ width: `${(dailyGoal.current / dailyGoal.target) * 100}%` }}
                                     />
                                 </div>
-                                <span className="text-[10px] font-black text-blue-400">{dailyGoal.current}/{dailyGoal.target}</span>
+                                <span className="text-[9px] font-black text-blue-400">{dailyGoal.current}/{dailyGoal.target}</span>
                             </div>
-                            <p className="text-[9px] text-gray-400">
-                                {dailyGoal.target - dailyGoal.current} more actions to maintain streak
+                            <p className="text-[8px] text-gray-400">
+                                {dailyGoal.target - dailyGoal.current} more to maintain streak
                             </p>
                         </motion.div>
                     )}

@@ -131,10 +131,10 @@ const CreativeBoard = ({ onSwitchMode }) => {
                     </div>
 
                     <button
-                        onClick={onSwitchMode}
+                        onClick={() => onSwitchMode('speaker')}
                         className="px-4 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all flex items-center gap-2 border border-white/5"
                     >
-                        <ArrowLeftRight size={14} /> Switch Studio
+                        <ArrowLeftRight size={14} /> Back to Speakers
                     </button>
                 </div>
 
