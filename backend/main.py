@@ -1224,12 +1224,43 @@ Output ONLY a JSON list of objects:
 
     try:
         response = requests.post(url, json=payload, headers=headers)
+        
+        # Check HTTP status
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Perplexity API error (HTTP {response.status_code}): {response.text[:200]}"
+            )
+        
         result = response.json()
-        content = result['choices'][0]['message']['content']
+        
+        # Debug: Log the response structure
+        print(f"Perplexity API Response: {json.dumps(result, indent=2)[:500]}")
+        
+        # Handle different response formats
+        content = None
+        if 'choices' in result and len(result['choices']) > 0:
+            content = result['choices'][0]['message']['content']
+        elif 'content' in result:
+            content = result['content']
+        elif 'message' in result:
+            content = result['message']
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected API response format. Keys: {list(result.keys())}"
+            )
         
         # Robust extraction
         start = content.find('[')
         end = content.rfind(']') + 1
+        
+        if start == -1 or end == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="AI did not return valid JSON array. Response: " + content[:200]
+            )
+        
         parsed_speakers = json.loads(content[start:end])
         
         added_count = 0
@@ -1307,6 +1338,12 @@ Output ONLY a JSON list of objects:
             "skipped": skipped_count,
             "duplicates": duplicates
         }
+    except json.JSONDecodeError as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to parse AI response as JSON: {str(e)}")
+    except KeyError as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Missing expected field in response: {str(e)}")
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"AI Processing failed: {str(e)}")
