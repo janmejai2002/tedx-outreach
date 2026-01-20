@@ -755,6 +755,14 @@ const Board = ({ onSwitchMode }) => {
                             )}
                         </button>
 
+                        <button
+                            onClick={() => setShowGuide(true)}
+                            className="h-9 w-9 flex items-center justify-center bg-white/5 text-gray-400 hover:text-yellow-500 hover:bg-yellow-500/10 border border-white/5 rounded-xl transition-all"
+                            title="Outreach Playbook"
+                        >
+                            <CircleHelp size={16} />
+                        </button>
+
                         {currentUser?.isAdmin && (
                             <button
                                 onClick={() => setShowAdminPanel(true)}

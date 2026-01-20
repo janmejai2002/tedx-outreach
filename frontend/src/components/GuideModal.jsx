@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, Database, Mail, Trophy, Map, Flame, Star, Zap } from 'lucide-react';
+import { X, Search, Database, Mail, Trophy, Map, Flame, Star, Zap, Shield } from 'lucide-react';
 
 const GuideModal = ({ isOpen, onClose, userXP = 0, streak = 0 }) => {
     const [activeTab, setActiveTab] = useState('tools');
@@ -12,6 +12,8 @@ const GuideModal = ({ isOpen, onClose, userXP = 0, streak = 0 }) => {
         { id: 'tools', label: 'Scouting Tools', icon: <Search size={16} /> },
         { id: 'flash', label: 'Flash Mode', icon: <Zap size={16} className="text-yellow-500" /> },
         { id: 'workflow', label: 'Workflow', icon: <Database size={16} /> },
+        { id: 'admin', label: 'Admin Power Tools', icon: <Shield size={16} className="text-blue-500" /> },
+        { id: 'strategies', label: 'Team Strategies', icon: <Star size={16} className="text-purple-500" /> },
         { id: 'gamification', label: 'Profile & Rewards', icon: <Trophy size={16} /> },
     ];
 
@@ -214,6 +216,82 @@ const GuideModal = ({ isOpen, onClose, userXP = 0, streak = 0 }) => {
                                         color="border-l-red-600"
                                         desc="The Holy Grail. They confirmed they are coming."
                                     />
+                                </div>
+                            )}
+
+                            {activeTab === 'admin' && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                                            <Shield size={24} className="text-blue-500" /> Admin Power Tools
+                                        </h3>
+                                        <p className="text-gray-400">
+                                            Advanced tools for managers to distribute workload and oversee the operation.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <GuideCard
+                                            title="Mass Action Terminal"
+                                            description="Enter 'Select Mode' at the top right to act on hundreds of leads at once."
+                                            steps={[
+                                                "**Bulk Assign**: Select multiple leads and move them to a team member instantly.",
+                                                "**Mass Status Reset**: Move entire batches between columns if priority changes.",
+                                                "**Bounty System**: Mark high-value leads with a red target to incentivize the team."
+                                            ]}
+                                        />
+
+                                        <GuideCard
+                                            title="Equally Divide (The 'Deploy' Tool)"
+                                            description="The fastest way to distribute fresh leads to your active team members."
+                                            steps={[
+                                                "Select all the leads you want to distribute.",
+                                                "Click **'Divide'** in the Mass Action Toolbar.",
+                                                "Pick the users who are working today.",
+                                                "Click **'Deploy'**. The system mathematically splits the leads and assigns them instantly."
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'strategies' && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                                            <Star size={24} className="text-purple-500 fill-purple-500/20" /> Team Strategy
+                                        </h3>
+                                        <p className="text-gray-400">
+                                            How to win the outreach game and lock the best speakers.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
+                                            <h4 className="text-white font-bold mb-3">Focus on 'The Hook'</h4>
+                                            <p className="text-xs text-gray-400 leading-relaxed">
+                                                Don't just send generic invites. Use the **Ghostwriter AI** inside the cards to find a unique angle related to our theme: **"Blurring Lines"**.
+                                            </p>
+                                        </div>
+                                        <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
+                                            <h4 className="text-white font-bold mb-3">The Follow-Up Rule</h4>
+                                            <p className="text-xs text-gray-400 leading-relaxed">
+                                                70% of speakers are locked on the 2nd or 3rd follow-up. Keep cards in **Contact Initiated** and use the activity log to track touches.
+                                            </p>
+                                        </div>
+                                        <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
+                                            <h4 className="text-white font-bold mb-3">Quality vs Quantity</h4>
+                                            <p className="text-xs text-gray-400 leading-relaxed">
+                                                One personalized, well-researched invite to a 'Legend' tier speaker is worth 50 generic ones.
+                                            </p>
+                                        </div>
+                                        <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
+                                            <h4 className="text-white font-bold mb-3">Collaborate</h4>
+                                            <p className="text-xs text-gray-400 leading-relaxed">
+                                                If you lose momentum on a lead, unassign yourself and let someone else take a fresh crack at it.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
