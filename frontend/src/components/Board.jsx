@@ -174,8 +174,12 @@ const Board = ({ onSwitchMode }) => {
                     }
                 } catch (error) {
                     console.error("Failed to sync gamification", error);
-                    // Fallback to local
-                    setStreak(parseInt(localStorage.getItem('user_streak') || '0'));
+                    if (error.response?.status === 401) {
+                        handleLogout();
+                    } else {
+                        // Fallback to local
+                        setStreak(parseInt(localStorage.getItem('user_streak') || '0'));
+                    }
                 }
             };
 
@@ -238,6 +242,9 @@ const Board = ({ onSwitchMode }) => {
             setSprintDeadline(data);
         } catch (e) {
             console.error("Failed to fetch sprint deadline", e);
+            if (e.response?.status === 401) {
+                handleLogout();
+            }
         }
     };
 
@@ -312,14 +319,9 @@ const Board = ({ onSwitchMode }) => {
     const fetchAuthorizedUsers = async () => {
         if (!localStorage.getItem('tedx_token')) return;
         try {
-            const token = localStorage.getItem('tedx_token');
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/admin/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const users = await res.json();
+            const users = await getAllUsers();
+            if (users && Array.isArray(users)) {
                 setAuthorizedUsers(users);
-                // Create userMap: roll_number -> name
                 const map = {};
                 users.forEach(u => {
                     map[u.roll_number] = u.name;
@@ -328,6 +330,9 @@ const Board = ({ onSwitchMode }) => {
             }
         } catch (e) {
             console.error("Failed to fetch users", e);
+            if (e.response?.status === 401) {
+                handleLogout();
+            }
         }
     };
 

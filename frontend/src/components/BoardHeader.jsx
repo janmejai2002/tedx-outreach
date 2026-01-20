@@ -26,7 +26,7 @@ const Countdown = ({ targetDate }) => {
             setTimeLeft(calculateTimeLeft());
         }, 1000);
         return () => clearTimeout(timer);
-    }, [timeLeft, targetDate]);
+    }, [targetDate]);
 
     if (!timeLeft) return <span>EXPIRED</span>;
 
