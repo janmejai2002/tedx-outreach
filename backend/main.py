@@ -1,7 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Response, Header
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, AuthorizedUserCreate, AuthorizedUserUpdate, BulkUpdate, Sponsor, SponsorUpdate, SponsorStatus, CreativeAsset, CreativeUpdate
+from models import (Speaker, SpeakerUpdate, OutreachStatus, AuditLog, AuthorizedUser, 
+                    AuthorizedUserCreate, AuthorizedUserUpdate, BulkUpdate, Sponsor, 
+                    SponsorUpdate, SponsorStatus, CreativeAsset, CreativeUpdate,
+                    SprintDeadline, CreativeRequest, CreativeRequestUpdate, CreativeRequestStatus)
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -1300,3 +1303,110 @@ Output ONLY a JSON list of objects:
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"AI Processing failed: {str(e)}")
+
+# ===== SPRINT DEADLINE MANAGEMENT =====
+
+@app.get("/sprint/deadline")
+def get_sprint_deadline(session: Session = Depends(get_session)):
+    """Get current sprint deadline"""
+    deadline = session.exec(select(SprintDeadline).order_by(SprintDeadline.created_at.desc())).first()
+    if not deadline:
+        # Create initial deadline: Jan 20, 2026 11:59:59 PM
+        initial_deadline = SprintDeadline(
+            deadline=datetime(2026, 1, 20, 23, 59, 59),
+            description="Initial Sprint Deadline",
+            created_by="SYSTEM"
+        )
+        session.add(initial_deadline)
+        session.commit()
+        session.refresh(initial_deadline)
+        return initial_deadline
+    return deadline
+
+@app.post("/admin/sprint/deadline")
+def update_sprint_deadline(
+    request: dict,  # {"deadline": "2026-01-25T23:59:59", "description": "..."}
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Admin: Update sprint deadline"""
+    new_deadline = SprintDeadline(
+        deadline=datetime.fromisoformat(request["deadline"]),
+        description=request.get("description", "Sprint Deadline"),
+        created_by=admin["sub"]
+    )
+    session.add(new_deadline)
+    session.commit()
+    session.refresh(new_deadline)
+    return new_deadline
+
+# ===== CREATIVE REQUEST SYSTEM =====
+
+@app.get("/creative-requests")
+def get_creative_requests(
+    my_requests: bool = False,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Get all creative requests or user's requests"""
+    query = select(CreativeRequest)
+    if my_requests:
+        query = query.where(CreativeRequest.requested_by == user["roll_number"])
+    requests_list = session.exec(query.order_by(CreativeRequest.created_at.desc())).all()
+    return requests_list
+
+@app.post("/creative-requests")
+def create_creative_request(
+    request: CreativeRequest,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Create a new creative request"""
+    request.requested_by = user["roll_number"]
+    session.add(request)
+    session.commit()
+    session.refresh(request)
+    return request
+
+@app.patch("/creative-requests/{request_id}")
+def update_creative_request(
+    request_id: int,
+    updates: CreativeRequestUpdate,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Update a creative request"""
+    db_request = session.get(CreativeRequest, request_id)
+    if not db_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    update_data = updates.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_request, key, value)
+    
+    if updates.status == CreativeRequestStatus.COMPLETED:
+        db_request.completed_at = datetime.now()
+    
+    session.add(db_request)
+    session.commit()
+    session.refresh(db_request)
+    return db_request
+
+@app.delete("/creative-requests/{request_id}")
+def delete_creative_request(
+    request_id: int,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Delete a creative request"""
+    db_request = session.get(CreativeRequest, request_id)
+    if not db_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Only requester or admin can delete
+    if db_request.requested_by != user["roll_number"] and not user.get("isAdmin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    session.delete(db_request)
+    session.commit()
+    return {"message": "Request deleted"}

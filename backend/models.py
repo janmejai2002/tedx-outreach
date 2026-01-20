@@ -178,6 +178,7 @@ class AuditLog(SQLModel, table=True):
     speaker_id: Optional[int] = Field(default=None, index=True)
     timestamp: datetime = Field(default_factory=datetime.now)
 
+
 class AuthorizedUser(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     roll_number: str = Field(index=True, unique=True)
@@ -197,3 +198,42 @@ class AuthorizedUserCreate(SQLModel):
     name: str
     is_admin: bool = False
     role: UserRole = UserRole.SPEAKER_OUTREACH
+
+# Sprint Deadline Management
+class SprintDeadline(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    deadline: datetime
+    description: Optional[str] = "Sprint Deadline"
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.now)
+
+# Creative Request System (PR -> Creatives)
+class CreativeRequestStatus(str, Enum):
+    REQUESTED = "REQUESTED"
+    IN_PROGRESS = "IN_PROGRESS"
+    REVIEW = "REVIEW"
+    COMPLETED = "COMPLETED"
+
+class CreativeRequest(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    description: str
+    requested_by: str  # Roll number
+    assigned_to: Optional[str] = None  # Creative team member
+    status: CreativeRequestStatus = Field(default=CreativeRequestStatus.REQUESTED)
+    priority: str = Field(default="MEDIUM")  # LOW, MEDIUM, HIGH, URGENT
+    due_date: Optional[datetime] = None
+    file_urls: Optional[str] = None  # JSON array of uploaded file URLs
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    completed_at: Optional[datetime] = None
+
+class CreativeRequestUpdate(SQLModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    assigned_to: Optional[str] = None
+    status: Optional[CreativeRequestStatus] = None
+    priority: Optional[str] = None
+    due_date: Optional[datetime] = None
+    file_urls: Optional[str] = None
+    notes: Optional[str] = None
