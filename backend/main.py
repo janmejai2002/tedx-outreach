@@ -24,20 +24,6 @@ def auto_migrate():
     print("🔄 Running auto-migrations...")
     from sqlalchemy import text
     
-    def run_step(sql, label):
-        # Use a fresh connection for each step to prevent transaction abortion from spreading
-        with engine.connect() as conn:
-            try:
-                conn.execute(text(sql))
-                conn.commit()
-                print(f"  ✓ {label}")
-            except Exception as e:
-                # Ignore "already exists" errors
-                err_str = str(e).lower()
-                if "already exists" in err_str or "duplicate column" in err_str:
-                    return
-                print(f"  ⚠ Note on {label}: {e}")
-
     is_postgres = "postgresql" in str(engine.url)
     
     # Speaker Table
@@ -53,17 +39,10 @@ def auto_migrate():
         ("last_activity", "TIMESTAMP")
     ]
     
-    for col, col_type in speaker_cols:
-        if is_postgres:
-            run_step(f"ALTER TABLE speaker ADD COLUMN IF NOT EXISTS {col} {col_type}", f"Add {col} to speaker")
-        else:
-            run_step(f"ALTER TABLE speaker ADD COLUMN {col} {col_type}", f"Add {col} to speaker")
-
     # AuditLog Table
-    if is_postgres:
-        run_step("ALTER TABLE auditlog ADD COLUMN IF NOT EXISTS speaker_id INTEGER", "Add speaker_id to auditlog")
-    else:
-        run_step("ALTER TABLE auditlog ADD COLUMN speaker_id INTEGER", "Add speaker_id to auditlog")
+    audit_cols = [
+        ("speaker_id", "INTEGER")
+    ]
 
     # AuthorizedUser Table
     user_cols = [
@@ -72,11 +51,40 @@ def auto_migrate():
         ("streak", "INTEGER DEFAULT 0"),
         ("last_login_date", "VARCHAR")
     ]
-    for col, col_type in user_cols:
-        if is_postgres:
-            run_step(f"ALTER TABLE authorizeduser ADD COLUMN IF NOT EXISTS {col} {col_type}", f"Add {col} to authorizeduser")
-        else:
-            run_step(f"ALTER TABLE authorizeduser ADD COLUMN {col} {col_type}", f"Add {col} to authorizeduser")
+
+    with engine.connect() as conn:
+        # Speaker
+        for col, col_type in speaker_cols:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE speaker ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE speaker ADD COLUMN {col} {col_type}"))
+                conn.commit()
+                print(f"  ✓ {col} added")
+            except Exception: pass
+
+        # AuditLog
+        for col, col_type in audit_cols:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE auditlog ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE auditlog ADD COLUMN {col} {col_type}"))
+                conn.commit()
+                print(f"  ✓ {col} added to auditlog")
+            except Exception: pass
+
+        # AuthorizedUser
+        for col, col_type in user_cols:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE authorizeduser ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE authorizeduser ADD COLUMN {col} {col_type}"))
+                conn.commit()
+                print(f"  ✓ {col} added to authorizeduser")
+            except Exception: pass
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -179,12 +187,16 @@ async def limit_request_size(request, call_next):
     response = await call_next(request)
     return response
 
+@app.get("/")
+def read_root():
+    return {"message": "TEDxXLRI Outreach API is active", "docs": "/docs"}
+
 @app.get("/healthz")
 def health_check():
     return {
         "status": "healthy",
-        "version": "1.0.4",
-        "last_deploy": "2026-01-21 02:32:00"
+        "version": "1.0.5",
+        "last_deploy": "2026-01-21 03:35:00"
     }
 
 @app.get("/logs")

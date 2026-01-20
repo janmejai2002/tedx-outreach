@@ -17,7 +17,17 @@ else:
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     connect_args = {}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# Create engine with increased pool size for production
+if "postgresql" in DATABASE_URL:
+    engine = create_engine(
+        DATABASE_URL, 
+        pool_size=20, 
+        max_overflow=10,
+        pool_timeout=60,
+        pool_recycle=1800
+    )
+else:
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

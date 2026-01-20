@@ -187,6 +187,31 @@ export const getAllUsers = async () => {
     return response.data;
 };
 
+export const adminAddUser = async (userData) => {
+    const response = await api.post('/admin/users', userData);
+    return response.data;
+};
+
+export const adminRemoveUser = async (rollNumber) => {
+    const response = await api.delete(`/admin/users/${rollNumber}`);
+    return response.data;
+};
+
+export const purgeInvalidData = async () => {
+    const response = await api.post('/admin/purge-invalid');
+    return response.data;
+};
+
+export const getBackup = async () => {
+    const response = await api.get('/admin/backup');
+    return response.data;
+};
+
+export const restoreBackup = async (data) => {
+    const response = await api.post('/admin/restore', data);
+    return response.data;
+};
+
 export const updateUserRole = async (rollNumber, data) => {
     const response = await api.patch(`/users/${rollNumber}`, data);
     return response.data;

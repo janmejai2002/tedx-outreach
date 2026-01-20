@@ -5,8 +5,20 @@ import {
     ShieldCheck, Activity, Award, CheckSquare,
     Palette, Building2, User, Sparkles, CheckCircle
 } from 'lucide-react';
-import { getAllUsers, updateUserRole, getCreativeRequests, createCreativeRequest, updateCreativeRequest, updateSprintDeadline } from '../api';
-import axios from 'axios';
+import {
+    getAllUsers,
+    updateUserRole,
+    getCreativeRequests,
+    createCreativeRequest,
+    updateCreativeRequest,
+    updateSprintDeadline,
+    adminAddUser,
+    adminRemoveUser,
+    ingestAiData,
+    purgeInvalidData,
+    getBackup,
+    restoreBackup
+} from '../api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -70,10 +82,7 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
         e.preventDefault();
         setAddingUser(true);
         try {
-            const token = localStorage.getItem('tedx_token');
-            await axios.post(`${API_URL}/admin/users`, newUser, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            await adminAddUser(newUser);
             setNewUser({ roll_number: '', name: '', is_admin: false, role: 'SPEAKER_OUTREACH' });
             fetchUsers();
             alert("User added successfully");
@@ -87,10 +96,7 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
     const handleDeleteUser = async (roll) => {
         if (!window.confirm(`Are you sure you want to remove ${roll}?`)) return;
         try {
-            const token = localStorage.getItem('tedx_token');
-            await axios.delete(`${API_URL}/admin/users/${roll}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            await adminRemoveUser(roll);
             fetchUsers();
         } catch (error) {
             alert(error.response?.data?.detail || "Failed to remove user");
@@ -556,7 +562,6 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                                     <select
                                                         value={req.status}
                                                         onChange={(e) => {
-                                                            alert("Updating status to " + e.target.value);
                                                             updateCreativeRequest(req.id, { status: e.target.value }).then(() => fetchCreativeRequests());
                                                         }}
                                                         className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-gray-400 font-black uppercase"
@@ -587,10 +592,7 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                             onClick={async () => {
                                 if (!window.confirm("Purge invalid 'NaN' cards from database?")) return;
                                 try {
-                                    const token = localStorage.getItem('tedx_token');
-                                    await axios.post(`${API_URL}/admin/purge-invalid`, {}, {
-                                        headers: { 'Authorization': `Bearer ${token}` }
-                                    });
+                                    await purgeInvalidData();
                                     alert("Invalid cards purged.");
                                     window.location.reload();
                                 } catch (e) {
@@ -605,11 +607,8 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                         <button
                             onClick={async () => {
                                 try {
-                                    const token = localStorage.getItem('tedx_token');
-                                    const res = await axios.get(`${API_URL}/admin/backup`, {
-                                        headers: { 'Authorization': `Bearer ${token}` }
-                                    });
-                                    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+                                    const data = await getBackup();
+                                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
@@ -635,10 +634,7 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                 reader.onload = async (event) => {
                                     try {
                                         const data = JSON.parse(event.target.result);
-                                        const token = localStorage.getItem('tedx_token');
-                                        await axios.post(`${API_URL}/admin/restore`, data, {
-                                            headers: { 'Authorization': `Bearer ${token}` }
-                                        });
+                                        await restoreBackup(data);
                                         alert("System Restored Successfully");
                                         window.location.reload();
                                     } catch (err) { alert("Restore failed: Invalid file."); }
