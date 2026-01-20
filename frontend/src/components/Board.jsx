@@ -548,9 +548,9 @@ const Board = ({ onSwitchMode }) => {
         }
 
         if (newStatus && activeDetails.status !== newStatus) {
-            // VERIFICATION: Cannot move beyond SCOUTED without an email
-            if (newStatus !== 'SCOUTED' && !activeDetails.email) {
-                alert(`Cannot move "${activeDetails.name}" to "${SECTIONS[newStatus]}". \n\nReason: Contact information (Email) is missing. Please add an email address in the speaker's profile first.`);
+            // VERIFICATION: Cannot move beyond SCOUTED without contact info
+            if (newStatus !== 'SCOUTED' && !activeDetails.email && !activeDetails.phone) {
+                alert(`Cannot move "${activeDetails.name}" to "${SECTIONS[newStatus]}". \n\nReason: Contact information (Email or Phone) is missing. Please add details in the speaker's profile first.`);
                 setActiveId(null);
                 return;
             }

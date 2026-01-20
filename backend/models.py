@@ -37,6 +37,8 @@ class Speaker(SQLModel, table=True):
     
     # Tracking Fields
     email: Optional[str] = None
+    phone: Optional[str] = None
+    remarks: Optional[str] = None # Quick remarks for floating tags
     spoc_name: Optional[str] = None # Single Point of Contact
     status: OutreachStatus = Field(default=OutreachStatus.SCOUTED)
     notes: Optional[str] = None
@@ -59,6 +61,8 @@ class Speaker(SQLModel, table=True):
 
 class SpeakerUpdate(SQLModel):
     email: Optional[str] = None
+    phone: Optional[str] = None
+    remarks: Optional[str] = None
     spoc_name: Optional[str] = None
     status: Optional[OutreachStatus] = None
     notes: Optional[str] = None

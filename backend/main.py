@@ -57,6 +57,8 @@ def auto_migrate():
         ("priority", "VARCHAR DEFAULT 'MEDIUM'"),
         ("due_date", "TIMESTAMP"),
         ("tags", "VARCHAR"),
+        ("phone", "VARCHAR"),
+        ("remarks", "VARCHAR"),
         ("last_activity", "TIMESTAMP")
     ]
     
@@ -504,8 +506,8 @@ def bulk_update_speakers(
         
         if 'status' in update_dict:
             new_status = update_dict['status']
-            # Verification: If moving to EMAIL_ADDED or beyond, must have an email
-            if new_status != OutreachStatus.SCOUTED and not db_speaker.email:
+            # Verification: If moving to EMAIL_ADDED or beyond, must have an email OR phone
+            if new_status != OutreachStatus.SCOUTED and not (db_speaker.email or db_speaker.phone):
                 skipped += 1
                 continue
             db_speaker.status = new_status
@@ -599,12 +601,19 @@ def update_speaker(
     # Update temporary object to check final state
     temp_status = speaker_data.get('status', db_speaker.status)
     temp_email = speaker_data.get('email', db_speaker.email)
+    temp_phone = speaker_data.get('phone', db_speaker.phone)
     
-    if temp_status != OutreachStatus.SCOUTED and not temp_email:
+    # Verification: Progressing beyond SCOUTED requires some contact info
+    if temp_status != OutreachStatus.SCOUTED and not (temp_email or temp_phone):
         raise HTTPException(
             status_code=400, 
-            detail="Forbidden: Cannot progress beyond 'Scouted' without a valid Email. Please add an email address first."
+            detail="Forbidden: Cannot progress beyond 'Scouted' without an Email or Phone. Please add contact information first."
         )
+
+    # AUTO-MOVE LOGIC: Move to EMAIL_ADDED if info provided while in SCOUTED
+    if db_speaker.status == OutreachStatus.SCOUTED and (temp_email or temp_phone) and 'status' not in speaker_data:
+        db_speaker.status = OutreachStatus.EMAIL_ADDED
+        print(f"Auto-moving {db_speaker.name} to EMAIL_ADDED")
 
     for key, value in speaker_data.items():
         setattr(db_speaker, key, value)

@@ -26,6 +26,8 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
     // Form State
     const [formData, setFormData] = useState({
         email: speaker.email || '',
+        phone: speaker.phone || '',
+        remarks: speaker.remarks || '',
         contact_method: speaker.contact_method || '',
         notes: speaker.notes || '',
         spoc_name: speaker.spoc_name || '',
@@ -35,6 +37,22 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
         is_bounty: speaker.is_bounty || false,
         linkedin_url: speaker.linkedin_url || ''
     });
+
+    useEffect(() => {
+        setFormData({
+            email: speaker.email || '',
+            phone: speaker.phone || '',
+            remarks: speaker.remarks || '',
+            contact_method: speaker.contact_method || '',
+            notes: speaker.notes || '',
+            spoc_name: speaker.spoc_name || '',
+            location: speaker.location || '',
+            primary_domain: speaker.primary_domain || '',
+            blurring_line_angle: speaker.blurring_line_angle || '',
+            is_bounty: speaker.is_bounty || false,
+            linkedin_url: speaker.linkedin_url || ''
+        });
+    }, [speaker]);
 
     useEffect(() => {
         // Load persisted draft
@@ -112,10 +130,12 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
     const handleSaveProfile = async () => {
         let patches = { ...formData };
 
-        // Auto-Move Logic
-        if (speaker.status === 'SCOUTED' && (formData.email || formData.contact_method)) {
+        // Auto-Move Logic: Move to EMAIL_ADDED if contact info added
+        if (speaker.status === 'SCOUTED' && (formData.email || formData.phone)) {
             patches.status = 'EMAIL_ADDED';
         }
+
+        // Research Move
         if (['SCOUTED', 'EMAIL_ADDED'].includes(speaker.status) && formData.blurring_line_angle) {
             patches.status = 'RESEARCHED';
         }
@@ -272,9 +292,9 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4 bg-white/5 p-4 rounded-lg border border-white/5">
+                            <div className="grid grid-cols-2 gap-4 bg-white/5 p-4 rounded-lg border border-white/5">
                                 <div className="space-y-1">
-                                    <label className="text-xs text-gray-400 font-bold">EMAIL</label>
+                                    <label className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1"><Mail size={10} /> Email</label>
                                     {isEditing ? (
                                         <input
                                             placeholder="speaker@example.com"
@@ -287,37 +307,67 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                                     )}
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs text-gray-400 font-bold">LINKEDIN</label>
+                                    <label className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1"><Smartphone size={10} /> Phone</label>
                                     {isEditing ? (
                                         <input
-                                            placeholder="URL..."
-                                            value={formData.linkedin_url}
-                                            onChange={e => setFormData({ ...formData, linkedin_url: e.target.value })}
+                                            placeholder="+91..."
+                                            value={formData.phone}
+                                            onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                             className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none"
                                         />
                                     ) : (
-                                        formData.linkedin_url ? (
-                                            <a href={formData.linkedin_url} target="_blank" rel="noreferrer" className="text-sm text-blue-400 hover:underline flex items-center gap-2">
-                                                <Linkedin size={14} /> Profile
-                                            </a>
-                                        ) : (
-                                            <p className="text-sm text-gray-600 italic">None</p>
-                                        )
+                                        <p className="text-sm text-white">{formData.phone || <span className="text-gray-600 italic">No phone</span>}</p>
                                     )}
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs text-gray-400 font-bold">METHOD</label>
+                                    <label className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1"><Send size={10} /> Contact Method</label>
                                     {isEditing ? (
                                         <input
-                                            placeholder="Phone etc"
+                                            placeholder="Instagram, WA, etc"
                                             value={formData.contact_method}
                                             onChange={e => setFormData({ ...formData, contact_method: e.target.value })}
                                             className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none"
                                         />
                                     ) : (
-                                        <p className="text-sm text-white">{formData.contact_method || <span className="text-gray-600 italic">No info</span>}</p>
+                                        <p className="text-sm text-white">{formData.contact_method || <span className="text-gray-600 italic">No method</span>}</p>
                                     )}
                                 </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-red-500 font-black uppercase flex items-center gap-1"><Activity size={10} /> Quick Remark (Floating Tag)</label>
+                                    {isEditing ? (
+                                        <input
+                                            placeholder="VIP, Hot, Need Help..."
+                                            value={formData.remarks}
+                                            onChange={e => setFormData({ ...formData, remarks: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none font-black"
+                                        />
+                                    ) : (
+                                        <p className="text-xs font-black text-red-500 uppercase tracking-tighter">{formData.remarks || <span className="text-gray-600 italic">None</span>}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-1 bg-white/[0.02] p-4 rounded-xl border border-white/5">
+                                <label className="text-xs text-gray-400 font-bold flex items-center gap-1"><Linkedin size={10} /> LINKEDIN PROFILE</label>
+                                {isEditing ? (
+                                    <input
+                                        placeholder="LinkedIn URL..."
+                                        value={formData.linkedin_url}
+                                        onChange={e => setFormData({ ...formData, linkedin_url: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none"
+                                    />
+                                ) : (
+                                    formData.linkedin_url ? (
+                                        <a href={formData.linkedin_url} target="_blank" rel="noreferrer" className="text-sm text-blue-400 hover:underline flex items-center gap-2">
+                                            {formData.linkedin_url} <ExternalLink size={12} />
+                                        </a>
+                                    ) : (
+                                        <p className="text-sm text-gray-600 italic">No URL</p>
+                                    )
+                                )}
                             </div>
 
                             <div className="space-y-1">

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LayoutGrid, MapPin, Mail, Award, CheckCircle, Target } from 'lucide-react';
+import { LayoutGrid, MapPin, Mail, Award, CheckCircle, Target, Phone, Tag } from 'lucide-react';
 
 const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelected, onToggleSelect, compact = false }) => {
     const {
@@ -65,11 +65,20 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
                 </div>
             )}
 
-            {/* Email Verification Nudge */}
-            {speaker.status === 'SCOUTED' && !speaker.email && (
+            {/* Email/Phone Verification Nudge */}
+            {speaker.status === 'SCOUTED' && !speaker.email && !speaker.phone && (
                 <div className="absolute top-2 left-2 z-10 group/warn">
                     <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 animate-pulse">
                         <Mail size={10} />
+                    </div>
+                </div>
+            )}
+
+            {/* Floating Remarks Tag */}
+            {speaker.remarks && (
+                <div className="absolute top-10 left-0 z-10 flex">
+                    <div className="bg-red-600/90 text-white text-[7px] font-black px-1.5 py-0.5 rounded-r shadow-lg uppercase tracking-tighter flex items-center gap-1">
+                        <Tag size={6} /> {speaker.remarks}
                     </div>
                 </div>
             )}
@@ -83,16 +92,28 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
                 </div>
             </div>
 
-            <div className="text-xs text-gray-400 mb-2 line-clamp-2">
+            <div className="text-[10px] text-gray-500 mb-2 line-clamp-2">
                 {speaker.primary_domain}
             </div>
 
             <div className="flex items-center justify-between mt-4">
-                <div className="flex items-center gap-3 text-xs text-gray-500">
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                     <div className="flex items-center gap-1">
                         <MapPin size={12} />
                         <span className="truncate max-w-[80px]">{speaker.location || 'Unknown'}</span>
                     </div>
+
+                    {speaker.email && (
+                        <div className="flex items-center gap-1 text-green-500/70" title={speaker.email}>
+                            <Mail size={10} />
+                        </div>
+                    )}
+                    {speaker.phone && (
+                        <div className="flex items-center gap-1 text-green-500/70" title={speaker.phone}>
+                            <Phone size={10} />
+                        </div>
+                    )}
+
                     {speaker.assigned_to ? (
                         <div className="flex items-center gap-1.5 text-blue-400">
                             <div className="w-4 h-4 rounded-full bg-blue-900/50 border border-blue-500/30 flex items-center justify-center text-[8px] font-black shadow-[0_0_8px_rgba(59,130,246,0.3)]">
