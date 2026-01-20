@@ -21,7 +21,7 @@ import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
 import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers } from '../api';
-import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield } from 'lucide-react';
+import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // New Granular Workflow
@@ -457,7 +457,7 @@ const Board = ({ onSwitchMode }) => {
                 // Update Log
                 setActivityLog(prev => [{
                     id: Date.now(),
-                    user: currentUser,
+                    user: currentUser?.name || 'Unknown',
                     action: `moved ${activeDetails.name} to ${newStatus}`,
                     time: new Date().toLocaleTimeString()
                 }, ...prev].slice(0, 50));
@@ -678,7 +678,7 @@ const Board = ({ onSwitchMode }) => {
                             className="relative group cursor-pointer"
                         >
                             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-purple-700 flex items-center justify-center font-black text-xs border border-white/20 shadow-lg shadow-red-900/20 group-hover:scale-105 transition-transform">
-                                {currentUser ? currentUser[0] : '?'}
+                                {currentUser?.name ? currentUser.name[0] : '?'}
                             </div>
                             <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-black rounded-full" />
                             <div className="absolute top-1/2 -right-2 transform -translate-y-1/2 translate-x-full bg-black/90 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-white/10">
@@ -736,7 +736,7 @@ const Board = ({ onSwitchMode }) => {
                     </div>
                 </div>
                 <DragOverlay>
-                    {activeId ? <SpeakerCard speaker={speakers.find(s => s.id === activeId)} /> : null}
+                    {activeId && speakers.find(s => s.id === activeId) ? <SpeakerCard speaker={speakers.find(s => s.id === activeId)} /> : null}
                 </DragOverlay>
             </DndContext >
 

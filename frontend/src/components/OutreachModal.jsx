@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Target, Mail, Globe, Linkedin, MapPin, AlertCircle,
     Trash2, ExternalLink, Download, Send, Smartphone,
-    User, Sparkles, X, Activity, Users, TrendingUp
+    User, Sparkles, X, Activity, Users, TrendingUp,
+    Pencil, Save, CheckCircle
 } from 'lucide-react';
 import { getSpeakerLogs, assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail, getAiPrompt } from '../api';
 import { Copy, Check } from 'lucide-react';
@@ -239,7 +240,7 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                                         onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
                                         className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${isEditing ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-300'}`}
                                     >
-                                        {isEditing ? <><Save size={12} /> Save Changes</> : <><Edit size={12} /> Edit Details</>}
+                                        {isEditing ? <><Save size={12} /> Save Changes</> : <><Pencil size={12} /> Edit Details</>}
                                     </button>
                                 </div>
                             </div>
@@ -426,7 +427,7 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                                 <div className="text-center py-12 text-gray-500 animate-pulse uppercase tracking-widest text-xs font-black">
                                     Reconstructing timeline...
                                 </div>
-                            ) : history.length === 0 ? (
+                            ) : (!Array.isArray(history) || history.length === 0) ? (
                                 <div className="text-center py-12 text-gray-700 bg-white/5 border border-dashed border-white/5 rounded-2xl">
                                     <Activity size={32} className="mx-auto mb-3 opacity-20" />
                                     <p className="text-sm">No activity recorded for this lead yet.</p>

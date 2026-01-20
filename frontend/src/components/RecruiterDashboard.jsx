@@ -50,10 +50,10 @@ const RecruiterDashboard = ({
                         {/* User ID Card */}
                         <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center gap-4">
                             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600 to-purple-700 flex items-center justify-center font-black text-xl border border-white/20 shadow-xl">
-                                {userName ? userName[0] : '?'}
+                                {userName?.name ? userName.name[0] : '?'}
                             </div>
                             <div className="flex-1">
-                                <h3 className="text-lg font-bold text-white leading-none mb-1">{userName}</h3>
+                                <h3 className="text-lg font-bold text-white leading-none mb-1">{userName?.name || 'Unknown User'}</h3>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Level {level}</span>
                                     <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -138,7 +138,7 @@ const RecruiterDashboard = ({
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className={`text-sm font-bold ${user.name === userName ? 'text-red-500' : 'text-gray-300'}`}>{user.name}</span>
+                                                <span className={`text-sm font-bold ${user.name === userName?.name ? 'text-red-500' : 'text-gray-300'}`}>{user.name}</span>
                                                 <span className="text-xs font-mono text-gray-500">{user.score} XP</span>
                                             </div>
                                             <div className="w-full h-[2px] bg-white/5 rounded-full overflow-hidden">
