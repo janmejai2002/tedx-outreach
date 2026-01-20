@@ -69,28 +69,35 @@ async def generate_email(
         raise HTTPException(status_code=404, detail="Speaker not found")
 
     prompt = f"""
-    Write a highly personalized, professional, and compelling invitation email for {speaker.name} to speak at TEDxXLRI.
+    Step 1: Search for the most recent professional achievements (2024-2025), recent books, or notable talks by {speaker.name}.
     
-    Speaker Context:
+    Step 2: Based on that research, write a highly personalized and compelling invitation email for {speaker.name} to speak at TEDxXLRI.
+    
+    Event Personality & Context:
+    - Event: TEDxXLRI 2026
+    - Campus: XLRI Delhi-NCR (India's premier and oldest management institute).
+    - Audience: 500+ ambitious MBA students, future business leaders, and CXOs.
+    - Global Reach: The talk will be professionally recorded and featured on the global TEDx YouTube channel.
+    - Theme: 'The Blurring Line' (Exploring the dissolving boundaries between technology, humanity, and business in 2025/2026).
+    - Logistics: TEDxXLRI will provide full coverage for travel and deluxe accommodation.
+    - Format: Standard 18-minute TED-style talk.
+    
+    Speaker Intelligence:
     - Name: {speaker.name}
-    - Domain/Expertise: {speaker.primary_domain or 'General Expert'}
-    - Location: {speaker.location or 'Unknown'}
-    - Research Details: {speaker.search_details or 'None provided'}
+    - Field: {speaker.primary_domain or 'Leadership/Innovation'}
+    - Existing Data: {speaker.search_details or ''}
     
-    The theme of the event is 'The Blurring Line'.
-    Event Date: Late Feb 2026.
-    
-    The email should:
-    1. Acknowledge their specific work or background.
-    2. Explain why 'The Blurring Line' theme is relevant to them.
-    3. Invite them to share their unique perspective.
-    4. Maintain a prestigious, respectful, and enthusiastic tone.
-    5. Include a clear Call to Action (like a short sync call).
-    
-    Output ONLY the email content.
+    Formatting Guidelines:
+    1. The Hook: Start by citing a VERY specific recent milestone or thought-piece you found about them in Step 1.
+    2. The Why: Articulate exactly how their specific work bridges the "Blurring Line" theme.
+    3. The Vibe: Use a tone that is "Prestigious but Disruptive."
+    4. The Logistics: Seamlessly mention that travel and stay are managed by us to minimize friction.
+    5. The CTA: Request a 10-minute introductory sync.
+
+    Output ONLY the email content. No conversational filler.
     """
     
-    draft = call_ai(prompt)
+    draft = call_ai(prompt, system_prompt="You are a prestigious head of speaker curation for TEDxXLRI. Your goal is to secure world-class speakers by demonstrating deep knowledge of their work.")
     
     # Save to DB
     speaker.email_draft = draft
