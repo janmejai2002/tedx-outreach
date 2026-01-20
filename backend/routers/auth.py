@@ -35,7 +35,7 @@ def login(request: LoginRequest, response: Response, session: Session = Depends(
     return {
         "access_token": access_token, 
         "token_type": "bearer", 
-        "isAdmin": user.role == "ADMIN", 
+        "isAdmin": user.role == "ADMIN" or user.is_admin, 
         "user_name": user.name,
         "roll_number": user.roll_number
     }

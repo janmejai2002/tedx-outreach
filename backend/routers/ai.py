@@ -11,52 +11,12 @@ from typing import Optional
 
 router = APIRouter(tags=["AI"])
 
-PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
-# Using a robust sonar-online model for live info or instruct model
-MODEL = "sonar" 
-
 class RefineRequest(BaseModel):
     current_draft: str
     instruction: str
 
 class IngestRequest(BaseModel):
     raw_text: str
-
-def call_ai(prompt: str, system_prompt: str = "You are a professional outreach assistant for TEDxXLRI."):
-    api_key = os.getenv("PERPLEXITY_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="Perplexity API key not configured")
-        
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2
-    }
-
-    try:
-        response = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
-    except Exception as e:
-        print(f"AI Error: {e}")
-        # Try fallback model if sonar fails
-        if "sonar" in MODEL:
-            try:
-                payload["model"] = "llama-3.1-8b-instruct"
-                response = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
-                response.raise_for_status()
-                return response.json()["choices"][0]["message"]["content"]
-            except:
-                pass
-        raise HTTPException(status_code=502, detail=f"AI Service Error: {str(e)}")
 
 @router.post("/generate-email")
 async def generate_email(
@@ -137,16 +97,18 @@ async def ingest_ai_data(
     user: dict = Depends(verify_token)
 ):
     """
-    Parses raw search data and extracts speaker profiles.
+    Parses raw search data and extracts speaker profiles with deduplication.
     """
     prompt = f"""
     Extract a list of potential speakers from the following text. 
     Format the output as a JSON array of objects with these fields:
-    - name: Full name
+    - name: Full name (be precise)
     - primary_domain: Their main field or occupation
     - location: City or country
     - linkedin_url: URL if found
-    - search_details: A short 2-3 sentence summary of why they are relevant.
+    - email: Email if found
+    - phone: Phone if found
+    - search_details: A short 2-3 sentence summary of why they are relevant to TEDxXLRI's theme 'The Blurring Line'.
 
     Raw Text:
     {payload.raw_text}
@@ -154,7 +116,7 @@ async def ingest_ai_data(
     Return ONLY the raw JSON array. If no speakers are found, return [].
     """
     
-    raw_json = call_ai(prompt, system_prompt="You are a data extraction assistant. Output only valid JSON.")
+    raw_json = call_ai(prompt, system_prompt="You are a data extraction assistant for TEDxXLRI. Output ONLY valid JSON array. Be extremely accurate with names.")
     
     try:
         # Clean the output if the AI added markdown blocks
@@ -166,22 +128,41 @@ async def ingest_ai_data(
             
         speakers_data = json.loads(clean_json)
         
-        new_speakers = []
+        new_speakers_count = 0
+        skipped_duplicates = []
+        
         for s_data in speakers_data:
+            name = s_data.get("name", "").strip()
+            if not name or name.lower() == "unknown":
+                continue
+                
+            # Deduplication: Check if name already exists
+            existing = session.exec(select(Speaker).where(Speaker.name == name)).first()
+            if existing:
+                skipped_duplicates.append(name)
+                continue
+                
             speaker = Speaker(
-                name=s_data.get("name", "Unknown"),
+                name=name,
                 primary_domain=s_data.get("primary_domain"),
                 location=s_data.get("location"),
                 linkedin_url=s_data.get("linkedin_url"),
+                email=s_data.get("email"),
+                phone=s_data.get("phone"),
                 search_details=s_data.get("search_details"),
                 status=OutreachStatus.SCOUTED,
                 assigned_by=user["roll_number"]
             )
             session.add(speaker)
-            new_speakers.append(speaker)
+            new_speakers_count += 1
             
         session.commit()
-        return {"message": f"Successfully ingested {len(new_speakers)} speakers.", "count": len(new_speakers)}
+        return {
+            "message": f"Successfully ingested {new_speakers_count} new speakers.",
+            "count": new_speakers_count,
+            "skipped_duplicates": skipped_duplicates,
+            "skipped_count": len(skipped_duplicates)
+        }
     except Exception as e:
         print(f"Ingestion error: {e}")
         return {"error": "Failed to parse AI output into valid speaker data.", "raw": raw_json}

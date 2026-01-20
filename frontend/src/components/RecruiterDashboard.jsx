@@ -10,12 +10,21 @@ const RecruiterDashboard = ({
     leaderboard,
     quests,
     teamGoal = { current: 45, target: 100 },
-    userName
+    userName,
+    speakers = [],
+    authorizedUsers = []
 }) => {
     if (!isOpen) return null;
 
     const level = Math.floor(userXP / 500) + 1;
     const progressToNextLevel = (userXP % 500) / 5;
+
+    // Personnel Pipeline Oversight
+    const teamStats = authorizedUsers.map(u => {
+        const count = speakers.filter(s => s.assigned_to === u.roll_number).length;
+        const locked = speakers.filter(s => s.assigned_to === u.roll_number && s.status === 'LOCKED').length;
+        return { name: u.name, count, locked };
+    }).filter(u => u.count > 0).sort((a, b) => b.count - a.count);
 
     return (
         <AnimatePresence>
@@ -124,6 +133,31 @@ const RecruiterDashboard = ({
                                 ))}
                             </div>
                         </section>
+
+                        {/* Personnel Pipeline */}
+                        {teamStats.length > 0 && (
+                            <section>
+                                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <Users size={12} className="text-purple-500" /> Personnel Pipeline
+                                </h4>
+                                <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                                    {teamStats.map((u, i) => (
+                                        <div key={i} className="flex justify-between items-center p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
+                                                <span className="text-xs font-bold text-gray-300">{u.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <div className="text-[10px] font-black text-white">{u.count} active</div>
+                                                    <div className="text-[8px] font-black text-green-500 uppercase">{u.locked} locked</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
 
                         {/* Global Leaderboard */}
                         <section>

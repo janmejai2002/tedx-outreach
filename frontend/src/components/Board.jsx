@@ -127,6 +127,14 @@ const Board = ({ onSwitchMode }) => {
                     const user = await getMyDetails();
                     setUserXP(user.xp || 0);
 
+                    // Sync Admin status in case it changed
+                    if (user.is_admin || user.role === 'ADMIN') {
+                        setCurrentUser(prev => ({ ...prev, isAdmin: true }));
+                        const saved = JSON.parse(localStorage.getItem('tedx_user_obj') || '{}');
+                        saved.isAdmin = true;
+                        localStorage.setItem('tedx_user_obj', JSON.stringify(saved));
+                    }
+
                     const today = new Date().toDateString();
                     const lastLogin = user.last_login_date;
                     let currentStreak = user.streak || 0;
@@ -401,21 +409,11 @@ const Board = ({ onSwitchMode }) => {
             });
             setUserXP(xp);
 
-            // Mock Leaderboard (Derived from current board state)
-            const spocMap = {};
-            speakers.forEach(s => {
-                const owner = s.assigned_to || s.spoc_name;
-                if (owner) {
-                    const multiplier = s.is_bounty ? 2 : 1;
-                    if (!spocMap[owner]) spocMap[owner] = 0;
-                    if (['LOCKED'].includes(s.status)) spocMap[owner] += (500 * multiplier);
-                    if (['CONTACT_INITIATED', 'CONNECTED'].includes(s.status)) spocMap[owner] += (50 * multiplier);
-                }
-            });
-            const lb = Object.entries(spocMap)
-                .map(([name, score]) => ({ name, score }))
+            // Real Leaderboard (Derived from database XP)
+            const lb = authorizedUsers
+                .map(u => ({ name: u.name, score: u.xp || 0 }))
                 .sort((a, b) => b.score - a.score)
-                .slice(0, 3);
+                .slice(0, 10);
             setLeaderboard(lb);
         }
 
@@ -877,12 +875,6 @@ const Board = ({ onSwitchMode }) => {
                 />
             )}
 
-            {showAdminPanel && (
-                <AdminPanel
-                    onClose={() => setShowAdminPanel(false)}
-                    speakers={speakers}
-                />
-            )}
 
             {
                 isAdding && (
@@ -933,18 +925,20 @@ const Board = ({ onSwitchMode }) => {
                 leaderboard={leaderboard}
                 quests={quests}
                 userName={currentUser}
+                speakers={speakers}
+                authorizedUsers={authorizedUsers}
                 teamGoal={{
                     current: speakers.filter(s => s.status === 'LOCKED').length,
-                    target: 12 // Adjusted target for a team
+                    target: 12
                 }}
             />
 
             {/* Admin Panel */}
             {showAdminPanel && (
                 <AdminPanel
-                    isOpen={showAdminPanel}
                     onClose={() => setShowAdminPanel(false)}
                     currentUser={currentUser}
+                    speakers={speakers}
                 />
             )}
 
