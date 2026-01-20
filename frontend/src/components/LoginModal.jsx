@@ -47,6 +47,8 @@ const LoginModal = ({ onLogin }) => {
                         <div className="relative">
                             <input
                                 type="text"
+                                id="rollNumber"
+                                name="rollNumber"
                                 placeholder="Roll No or First Name"
                                 value={rollNumber}
                                 onChange={(e) => {

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlmodel import Session, select
 from database import get_session
 from models import AuthorizedUser, UserRole
@@ -11,7 +11,6 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/login")
-@limiter.limit("5/minute")
 def login(request: LoginRequest, response: Response, session: Session = Depends(get_session)):
     # Try Roll Number match (Original)
     user = session.exec(select(AuthorizedUser).where(AuthorizedUser.roll_number == request.roll_number.lower().strip())).first()
