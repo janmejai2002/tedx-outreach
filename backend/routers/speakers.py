@@ -80,6 +80,20 @@ def read_speaker(speaker_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Speaker not found")
     return speaker
 
+@router.get("/{speaker_id}/logs", response_model=List[AuditLog])
+def get_speaker_logs(
+    speaker_id: int,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Retrieve history for a specific speaker"""
+    logs = session.exec(
+        select(AuditLog)
+        .where(AuditLog.speaker_id == speaker_id)
+        .order_by(AuditLog.timestamp.desc())
+    ).all()
+    return logs
+
 @router.patch("/bulk")
 def bulk_update_speakers(
     update_data: BulkUpdate,

@@ -1,5 +1,9 @@
 import os
 from sqlmodel import SQLModel, create_engine, Session
+from dotenv import load_dotenv
+# Load .env from the same directory as this file
+env_path = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(env_path)
 
 # Use DATABASE_URL env var if set (Production), else local SQLite
 DATABASE_URL = os.environ.get("DATABASE_URL")
