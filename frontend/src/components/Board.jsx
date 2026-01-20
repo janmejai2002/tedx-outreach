@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, Trash2, Edit3, ArrowRight } from 'lucide-react';
 import {
@@ -128,11 +128,13 @@ const Board = ({ onSwitchMode }) => {
                     setUserXP(user.xp || 0);
 
                     // Sync Admin status in case it changed
-                    if ((user.is_admin || user.role === 'ADMIN') && !currentUser.isAdmin) {
-                        setCurrentUser(prev => ({ ...prev, isAdmin: true }));
-                        const saved = JSON.parse(localStorage.getItem('tedx_user_obj') || '{}');
-                        saved.isAdmin = true;
-                        localStorage.setItem('tedx_user_obj', JSON.stringify(saved));
+                    if (user.is_admin || user.role === 'ADMIN') {
+                        setCurrentUser(prev => {
+                            if (prev?.isAdmin) return prev;
+                            const updated = { ...prev, isAdmin: true };
+                            localStorage.setItem('tedx_user_obj', JSON.stringify(updated));
+                            return updated;
+                        });
                     }
 
                     const today = new Date().toDateString();
@@ -378,9 +380,9 @@ const Board = ({ onSwitchMode }) => {
     const [showTour, setShowTour] = useState(false);
     const [showCreativeRequest, setShowCreativeRequest] = useState(false);
 
-    useEffect(() => {
-        // Filter logic
-        const lowerTerm = searchTerm.toLowerCase();
+    // Filter logic
+    const lowerTerm = searchTerm.toLowerCase();
+    const currentFilteredSpeakers = useMemo(() => {
         let filtered = speakers.filter(s =>
             s.name.toLowerCase().includes(lowerTerm) ||
             s.primary_domain?.toLowerCase().includes(lowerTerm)
@@ -393,31 +395,43 @@ const Board = ({ onSwitchMode }) => {
             const pB = PRIORITY_VALS[b.outreach_priority] || 0;
             return pB - pA; // Descending
         });
+        return filtered;
+    }, [speakers, lowerTerm]);
 
-        setFilteredSpeakers(filtered);
+    // Update filteredSpeakers sync if needed, but better to use it directly
+    useEffect(() => {
+        setFilteredSpeakers(currentFilteredSpeakers);
+    }, [currentFilteredSpeakers]);
 
-        // Gamification Logic
-        if (currentUser) {
-            // Calculate my XP
-            const myLeads = speakers.filter(s => s.spoc_name === currentUser.name || s.assigned_to === currentUser.roll);
-            let xp = 0;
-            myLeads.forEach(s => {
-                const multiplier = s.is_bounty ? 2 : 1;
-                if (['RESEARCHED'].includes(s.status)) xp += (10 * multiplier);
-                if (['CONTACT_INITIATED', 'CONNECTED', 'IN_TALKS'].includes(s.status)) xp += (60 * multiplier);
-                if (['LOCKED'].includes(s.status)) xp += (560 * multiplier);
-            });
-            setUserXP(xp);
+    // XP calculation
+    const calculatedXP = useMemo(() => {
+        if (!currentUser) return 0;
+        const myLeads = speakers.filter(s => s.spoc_name === currentUser.name || s.assigned_to === currentUser.roll);
+        let xp = 0;
+        myLeads.forEach(s => {
+            const multiplier = s.is_bounty ? 2 : 1;
+            if (['RESEARCHED'].includes(s.status)) xp += (10 * multiplier);
+            if (['CONTACT_INITIATED', 'CONNECTED', 'IN_TALKS'].includes(s.status)) xp += (60 * multiplier);
+            if (['LOCKED'].includes(s.status)) xp += (560 * multiplier);
+        });
+        return xp;
+    }, [speakers, currentUser]);
 
-            // Real Leaderboard (Derived from database XP)
-            const lb = authorizedUsers
-                .map(u => ({ name: u.name, score: u.xp || 0 }))
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 10);
-            setLeaderboard(lb);
-        }
+    // Sync XP to state if needed for other hooks
+    useEffect(() => {
+        setUserXP(calculatedXP);
+    }, [calculatedXP]);
 
-    }, [speakers, searchTerm, currentUser]);
+    const currentLeaderboard = useMemo(() => {
+        return authorizedUsers
+            .map(u => ({ name: u.name, score: u.xp || 0 }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 10);
+    }, [authorizedUsers]);
+
+    useEffect(() => {
+        setLeaderboard(currentLeaderboard);
+    }, [currentLeaderboard]);
 
     // Keyboard Shortcuts for Undo/Redo
     useEffect(() => {
