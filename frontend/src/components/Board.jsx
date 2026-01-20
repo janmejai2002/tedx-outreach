@@ -382,7 +382,8 @@ const Board = ({ onSwitchMode }) => {
             if (searchTerm) params.search = searchTerm;
 
             const data = await getSpeakers(params);
-            setSpeakers(data);
+            const sanitized = data.filter(s => s && s.name && s.name.toLowerCase() !== 'nan');
+            setSpeakers(sanitized);
         } catch (e) {
             console.error("Failed to fetch", e);
             if (e.response?.status === 401) {
