@@ -848,7 +848,7 @@ const Board = ({ onSwitchMode }) => {
                     <div className="flex gap-4 h-full min-w-max">
                         {Object.entries(SECTIONS).map(([key, title]) => (
                             <div key={key} className="snap-center h-full">
-                                <Column
+                                <SpeakerColumn
                                     id={key}
                                     title={title}
                                     speakers={filteredSpeakers.filter(s => s.status === key)}
