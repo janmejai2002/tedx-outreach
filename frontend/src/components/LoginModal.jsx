@@ -8,6 +8,7 @@ const LoginModal = ({ onLogin }) => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -15,7 +16,9 @@ const LoginModal = ({ onLogin }) => {
 
         try {
             const data = await loginUser(rollNumber);
-            onLogin(data.user_name, data.roll_number, data.is_admin);
+            // Backend returns: { access_token, token_type, isAdmin, user_name, roll_number }
+            // We need to pass: (name, roll, isAdmin)
+            onLogin(data.user_name, data.roll_number, data.isAdmin);
         } catch (err) {
             setError(err.response?.data?.detail || 'Access Denied. Please try again.');
         } finally {

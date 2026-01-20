@@ -203,8 +203,15 @@ def login(user_login: UserLogin, session: Session = Depends(get_session)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credential. Roll/Name not recognized.")
     
+    
     access_token = create_access_token(data={"sub": user.roll_number, "isAdmin": user.role == "ADMIN"})
-    return {"access_token": access_token, "token_type": "bearer", "isAdmin": user.role == "ADMIN", "user_name": user.name}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "isAdmin": user.role == "ADMIN", 
+        "user_name": user.name,
+        "roll_number": user.roll_number
+    }
 
 # --- BACKUP & RESTORE (ADMIN ONLY) ---
 
