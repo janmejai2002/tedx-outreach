@@ -493,6 +493,7 @@ def bulk_update_speakers(
 ):
     """Update multiple speakers at once"""
     count = 0
+    skipped = 0
     for speaker_id in update_data.ids:
         db_speaker = session.get(Speaker, speaker_id)
         if not db_speaker:
@@ -502,7 +503,12 @@ def bulk_update_speakers(
         modified = False
         
         if 'status' in update_dict:
-            db_speaker.status = update_dict['status']
+            new_status = update_dict['status']
+            # Verification: If moving to EMAIL_ADDED or beyond, must have an email
+            if new_status != OutreachStatus.SCOUTED and not db_speaker.email:
+                skipped += 1
+                continue
+            db_speaker.status = new_status
             modified = True
             
         if 'assigned_to' in update_dict:
@@ -537,12 +543,16 @@ def bulk_update_speakers(
         log = AuditLog(
             user_name=user_name,
             action="BULK_UPDATE",
-            details=f"Updated {count} speakers (IDs: {update_data.ids[:5]}...)"
+            details=f"Updated {count} speakers (Skipped {skipped} due to missing email)"
         )
         session.add(log)
         session.commit()
         
-    return {"message": f"Successfully updated {count} speakers", "count": count}
+    return {
+        "message": f"Successfully updated {count} speakers. Skipped {skipped} lacking email.", 
+        "count": count,
+        "skipped": skipped
+    }
 
 @app.delete("/speakers/bulk")
 def bulk_delete_speakers(
@@ -585,6 +595,17 @@ def update_speaker(
     
     old_status = db_speaker.status
     speaker_data = speaker_update.model_dump(exclude_unset=True)
+    
+    # Update temporary object to check final state
+    temp_status = speaker_data.get('status', db_speaker.status)
+    temp_email = speaker_data.get('email', db_speaker.email)
+    
+    if temp_status != OutreachStatus.SCOUTED and not temp_email:
+        raise HTTPException(
+            status_code=400, 
+            detail="Forbidden: Cannot progress beyond 'Scouted' without a valid Email. Please add an email address first."
+        )
+
     for key, value in speaker_data.items():
         setattr(db_speaker, key, value)
         

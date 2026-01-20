@@ -65,6 +65,15 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
                 </div>
             )}
 
+            {/* Email Verification Nudge */}
+            {speaker.status === 'SCOUTED' && !speaker.email && (
+                <div className="absolute top-2 left-2 z-10 group/warn">
+                    <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 animate-pulse">
+                        <Mail size={10} />
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-between items-start mb-2">
                 <h3 className="font-bold text-white leading-tight pr-2 group-hover:text-red-400 transition-colors">{speaker.name}</h3>
                 <div className="flex flex-col items-end gap-1">

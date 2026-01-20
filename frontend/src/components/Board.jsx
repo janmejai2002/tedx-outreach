@@ -400,14 +400,19 @@ const Board = ({ onSwitchMode }) => {
         if (validIds.length === 0) return;
         setLoading(true);
         try {
-            await bulkUpdateSpeakers({
+            const result = await bulkUpdateSpeakers({
                 ids: validIds,
                 ...updates
             });
             await fetchSpeakers();
             setSelectedIds(new Set());
             setIsSelectMode(false);
-            confetti({ particleCount: 30, spread: 50, origin: { y: 0.9 } });
+
+            if (result.skipped > 0) {
+                alert(`${result.count} leads updated. ${result.skipped} leads were SKIPPED because they lack an email address.`);
+            } else {
+                confetti({ particleCount: 30, spread: 50, origin: { y: 0.9 } });
+            }
         } catch (error) {
             console.error("Bulk update failed", error);
             const detail = error.response?.data?.detail;
@@ -543,6 +548,13 @@ const Board = ({ onSwitchMode }) => {
         }
 
         if (newStatus && activeDetails.status !== newStatus) {
+            // VERIFICATION: Cannot move beyond SCOUTED without an email
+            if (newStatus !== 'SCOUTED' && !activeDetails.email) {
+                alert(`Cannot move "${activeDetails.name}" to "${SECTIONS[newStatus]}". \n\nReason: Contact information (Email) is missing. Please add an email address in the speaker's profile first.`);
+                setActiveId(null);
+                return;
+            }
+
             const oldStatus = activeDetails.status;
 
             // Optimistic Update
@@ -615,13 +627,18 @@ const Board = ({ onSwitchMode }) => {
 
     const handleSpeakerUpdate = async (id, updates) => {
         // Optimistic update
+        const originalSpeakers = [...speakers];
         setSpeakers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
         try {
             await updateSpeaker(id, updates);
         } catch (e) {
             console.error("Failed to update speaker", e);
-            // Optionally: revert state on failure
-            fetchSpeakers();
+            const errorMsg = e.response?.data?.detail || e.message;
+            if (e.response?.status === 400) {
+                alert(`Update Rejected: ${errorMsg}`);
+            }
+            // Revert state on failure
+            setSpeakers(originalSpeakers);
         }
     };
 
