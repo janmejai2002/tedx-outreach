@@ -21,7 +21,7 @@ import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
 import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers } from '../api';
-import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle } from 'lucide-react';
+import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // New Granular Workflow
@@ -150,6 +150,9 @@ const Board = ({ onSwitchMode }) => {
     // Achievement Notification State
     const [latestAchievement, setLatestAchievement] = useState(null);
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    const [showDivideModal, setShowDivideModal] = useState(false);
+    const [targetUsers, setTargetUsers] = useState(new Set());
+    const [loading, setLoading] = useState(false);
 
     const toggleSelection = (id) => {
         const newSet = new Set(selectedIds);
@@ -385,6 +388,46 @@ const Board = ({ onSwitchMode }) => {
             console.error("Bulk update failed", error);
             alert("Failed to perform bulk update");
         }
+    };
+
+    const handleBulkDivide = async () => {
+        if (targetUsers.size === 0) return alert("Select at least one user to divide among");
+
+        setLoading(true);
+        try {
+            const ids = Array.from(selectedIds);
+            const users = Array.from(targetUsers);
+            const chunkSize = Math.ceil(ids.length / users.length);
+
+            for (let i = 0; i < users.length; i++) {
+                const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+                if (chunk.length > 0) {
+                    await bulkUpdateSpeakers({
+                        ids: chunk,
+                        assigned_to: users[i]
+                    });
+                }
+            }
+
+            await fetchSpeakers();
+            setSelectedIds(new Set());
+            setTargetUsers(new Set());
+            setShowDivideModal(false);
+            setIsSelectMode(false);
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        } catch (e) {
+            console.error("Divide failed", e);
+            alert("An error occurred during division");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleTargetUser = (roll) => {
+        const next = new Set(targetUsers);
+        if (next.has(roll)) next.delete(roll);
+        else next.add(roll);
+        setTargetUsers(next);
     };
 
     const handleDragStart = (event) => {
@@ -901,19 +944,46 @@ const Board = ({ onSwitchMode }) => {
                                 onClick={() => handleBulkUpdate({ assigned_to: currentUser.roll })}
                                 className="h-9 px-4 bg-white/5 hover:bg-white text-gray-400 hover:text-black rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
                             >
-                                <Users size={12} /> Assign To Me
+                                <Users size={12} /> Me
                             </button>
+
+                            {currentUser?.isAdmin && authorizedUsers.length > 0 && (
+                                <select
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val) handleBulkUpdate({ assigned_to: val === "null" ? null : val });
+                                    }}
+                                    className="h-9 px-4 bg-white/5 border border-white/5 hover:border-white/20 rounded-xl text-[10px] font-black uppercase text-gray-400 focus:outline-none transition-all cursor-pointer"
+                                >
+                                    <option value="">Assign To...</option>
+                                    {authorizedUsers.map(u => (
+                                        <option key={u.roll_number} value={u.roll_number}>{u.name}</option>
+                                    ))}
+                                    <option value="null">-- Clear --</option>
+                                </select>
+                            )}
+
+                            {currentUser?.isAdmin && (
+                                <button
+                                    onClick={() => setShowDivideModal(true)}
+                                    className="h-9 px-4 bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-purple-500/20"
+                                >
+                                    <LayoutGrid size={12} /> Divide
+                                </button>
+                            )}
+
                             <button
                                 onClick={() => handleBulkUpdate({ is_bounty: true })}
                                 className="h-9 px-4 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-red-500/20"
                             >
-                                <Target size={12} /> Mark Bounty
+                                <Target size={12} /> Bounty
                             </button>
+
                             <select
                                 onChange={(e) => e.target.value && handleBulkUpdate({ status: e.target.value })}
                                 className="h-9 px-4 bg-white/5 border border-white/5 hover:border-white/20 rounded-xl text-[10px] font-black uppercase text-gray-400 focus:outline-none transition-all cursor-pointer"
                             >
-                                <option value="">Change Status...</option>
+                                <option value="">Status...</option>
                                 {Object.entries(SECTIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
                         </div>
@@ -930,6 +1000,59 @@ const Board = ({ onSwitchMode }) => {
                             <X size={18} />
                         </button>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Divide Leads Modal */}
+            <AnimatePresence>
+                {showDivideModal && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="w-full max-w-md bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                        >
+                            <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Equally Divide Leads</h3>
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase">Distributing {selectedIds.size} selected cards</p>
+                                </div>
+                                <button onClick={() => { setShowDivideModal(false); setTargetUsers(new Set()); }} className="text-gray-500 hover:text-white"><X size={20} /></button>
+                            </div>
+
+                            <div className="p-6 space-y-4 max-h-[50vh] overflow-y-auto">
+                                {authorizedUsers.map(user => (
+                                    <div
+                                        key={user.roll_number}
+                                        onClick={() => toggleTargetUser(user.roll_number)}
+                                        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer border transition-all ${targetUsers.has(user.roll_number) ? 'bg-purple-600/10 border-purple-500/50' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center font-black text-[10px] text-gray-500">
+                                                {user.name[0]}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-white">{user.name}</p>
+                                                <p className="text-[9px] font-mono text-gray-600 uppercase">{user.roll_number}</p>
+                                            </div>
+                                        </div>
+                                        {targetUsers.has(user.roll_number) && <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="p-6 bg-white/5 border-t border-white/5">
+                                <button
+                                    onClick={handleBulkDivide}
+                                    disabled={targetUsers.size === 0}
+                                    className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-purple-900/20 disabled:opacity-30"
+                                >
+                                    Deploy Leads to {targetUsers.size} People
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
 

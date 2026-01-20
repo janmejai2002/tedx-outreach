@@ -12,6 +12,7 @@ import json
 import os
 import io
 from pydantic import BaseModel
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables from .env file (local) or /etc/secrets/.env (Render)
@@ -495,17 +496,21 @@ def bulk_update_speakers(
         if not db_speaker:
             continue
             
+        update_dict = update_data.model_dump(exclude_unset=True)
         modified = False
-        if update_data.status:
-            db_speaker.status = update_data.status
+        
+        if 'status' in update_dict:
+            db_speaker.status = update_dict['status']
             modified = True
-        if update_data.assigned_to is not None:
-            db_speaker.assigned_to = update_data.assigned_to
+            
+        if 'assigned_to' in update_dict:
+            db_speaker.assigned_to = update_dict['assigned_to']
             db_speaker.assigned_by = user_name
             db_speaker.assigned_at = func.now()
             modified = True
-        if update_data.is_bounty is not None:
-            db_speaker.is_bounty = update_data.is_bounty
+            
+        if 'is_bounty' in update_dict:
+            db_speaker.is_bounty = update_dict['is_bounty']
             modified = True
             
         if modified:
@@ -564,6 +569,7 @@ def generate_email(
     - Theme: "Blurring Lines"
     - Date: 20th February 2026
     - Theme Philosophy: We are exploring the intersections where rigid boundaries dissolve—between technology and art, logic and emotion, tradition and innovation.
+    - Extra info: The invite should get their expression of interest to be a speaker 
     
     Return explicitly JSON with these keys:
     - "subject": A catchy subject line (e.g., "TEDx Invitation: {speaker.name} + Blurring Lines")
