@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Response, Header
 from sqlmodel import Session, select
-from database import create_db_and_tables, engine 
-from models import Speaker, Sponsor, SponsorStatus, AuthorizedUser
+from models import Speaker, Sponsor, SponsorStatus, AuthorizedUser, AuditLog
+from database import create_db_and_tables, engine, get_session
+from auth_utils import verify_token
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from contextlib import asynccontextmanager
@@ -181,6 +182,16 @@ async def limit_request_size(request, call_next):
 @app.get("/healthz")
 def health_check():
     return {"status": "healthy"}
+
+@app.get("/logs")
+def get_global_logs(
+    limit: int = 50,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    """Retrieve global activity logs"""
+    logs = session.exec(select(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit)).all()
+    return logs
 
 # Include Routers
 app.include_router(auth.router)
