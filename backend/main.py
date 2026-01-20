@@ -1154,7 +1154,7 @@ Output ONLY a JSON object with this structure:
 def ingest_speakers_ai(
     request: dict, # {"raw_text": "..."}
     session: Session = Depends(get_session),
-    admin: dict = Depends(verify_admin)
+    user: dict = Depends(verify_token)  # Changed from verify_admin - now available to all users
 ):
     """Parses raw text into speaker cards and auto-assigns them with duplicate detection"""
     raw_text = request.get("raw_text")

@@ -20,8 +20,9 @@ import AdminPanel from './AdminPanel';
 import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
+import IngestionModal from './IngestionModal';
 import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers } from '../api';
-import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid } from 'lucide-react';
+import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // New Granular Workflow
@@ -172,6 +173,7 @@ const Board = ({ onSwitchMode }) => {
     const [loading, setLoading] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [showAdmin, setShowAdmin] = useState(false);
+    const [showIngestion, setShowIngestion] = useState(false);
 
 
     const toggleSelection = (id) => {
@@ -732,6 +734,13 @@ const Board = ({ onSwitchMode }) => {
                         >
                             <span className="text-sm font-normal">+</span> <span className="hidden md:inline">Add</span>
                         </button>
+                        <button
+                            onClick={() => setShowIngestion(true)}
+                            className="h-8 md:pl-3 md:pr-4 px-2 bg-yellow-600 hover:bg-yellow-500 text-black rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-yellow-900/20"
+                            title="AI Bulk Import"
+                        >
+                            <Sparkles size={14} /> <span className="hidden md:inline">AI Import</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1220,6 +1229,13 @@ const Board = ({ onSwitchMode }) => {
                             <p className="text-xs text-gray-500 font-medium">{latestAchievement.subtitle}</p>
                         </div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* AI Ingestion Modal */}
+            <AnimatePresence>
+                {showIngestion && (
+                    <IngestionModal onClose={() => setShowIngestion(false)} />
                 )}
             </AnimatePresence>
 
