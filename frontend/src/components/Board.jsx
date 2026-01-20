@@ -21,7 +21,7 @@ import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
 import IngestionModal from './IngestionModal';
-import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers } from '../api';
+import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification } from '../api';
 import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -52,6 +52,42 @@ const getBadge = (xp) => {
     return { name: 'Rookie', icon: '👶', color: 'text-gray-500' };
 };
 
+const Countdown = ({ targetDate }) => {
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date();
+            const target = new Date(targetDate);
+            const diff = target - now;
+
+            if (diff <= 0) {
+                clearInterval(interval);
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+            } else {
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((diff / 1000 / 60) % 60);
+                const seconds = Math.floor((diff / 1000) % 60);
+                setTimeLeft({ days, hours, minutes, seconds });
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [targetDate]);
+
+    return (
+        <span className="flex gap-1">
+            <span>{String(timeLeft.days).padStart(2, '0')}d</span>
+            <span className="opacity-30">:</span>
+            <span>{String(timeLeft.hours).padStart(2, '0')}h</span>
+            <span className="opacity-30">:</span>
+            <span>{String(timeLeft.minutes).padStart(2, '0')}m</span>
+            <span className="opacity-30">:</span>
+            <span>{String(timeLeft.seconds).padStart(2, '0')}s</span>
+        </span>
+    );
+};
+
 const Board = ({ onSwitchMode }) => {
     const [speakers, setSpeakers] = useState([]);
     const [filteredSpeakers, setFilteredSpeakers] = useState([]);
@@ -80,47 +116,57 @@ const Board = ({ onSwitchMode }) => {
     const [streak, setStreak] = useState(0);
 
     // Check Streak on Load
+    // Sync Gamification on Load
     useEffect(() => {
         if (currentUser) {
-            const lastLogin = localStorage.getItem('last_login_date');
-            const currentStreak = parseInt(localStorage.getItem('user_streak') || '0');
-            const today = new Date().toDateString();
+            const syncUserStats = async () => {
+                try {
+                    const user = await getMyDetails();
+                    setUserXP(user.xp || 0);
 
-            if (lastLogin !== today) {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
+                    const today = new Date().toDateString();
+                    const lastLogin = user.last_login_date;
+                    let currentStreak = user.streak || 0;
 
-                if (lastLogin === yesterday.toDateString()) {
-                    // Conniecutive day
-                    const newStreak = currentStreak + 1;
-                    setStreak(newStreak);
-                    localStorage.setItem('user_streak', newStreak);
-                    // Bonus XP for streak
-                    if (newStreak % 3 === 0) confetti({ particleCount: 50, origin: { x: 0.1, y: 0.1 } });
-                } else {
-                    // Broken streak (or first login)
-                    // Only reset if it's strictly before yesterday (not just first time)
-                    if (lastLogin) {
-                        const lastDate = new Date(lastLogin);
-                        const diffTime = Math.abs(new Date() - lastDate);
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        if (diffDays > 1) {
-                            setStreak(1);
-                            localStorage.setItem('user_streak', 1);
+                    if (lastLogin !== today) {
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+
+                        if (lastLogin === yesterday.toDateString()) {
+                            // Consecutive day
+                            currentStreak += 1;
+                            if (currentStreak % 3 === 0) confetti({ particleCount: 50, origin: { x: 0.1, y: 0.1 } });
+                        } else if (lastLogin) {
+                            // Check if strictly more than 1 day gap
+                            const lastDate = new Date(lastLogin);
+                            const diffTime = Math.abs(new Date() - lastDate);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            if (diffDays > 1) {
+                                currentStreak = 1; // Reset
+                            }
                         } else {
-                            // Same day login, do nothing
-                            setStreak(currentStreak);
+                            currentStreak = 1; // First time
                         }
+
+                        // Optimistic update
+                        setStreak(currentStreak);
+
+                        // Push to backend
+                        await updateMyGamification({
+                            streak: currentStreak,
+                            last_login_date: today
+                        });
                     } else {
-                        // First time ever
-                        setStreak(1);
-                        localStorage.setItem('user_streak', 1);
+                        setStreak(currentStreak);
                     }
+                } catch (error) {
+                    console.error("Failed to sync gamification", error);
+                    // Fallback to local
+                    setStreak(parseInt(localStorage.getItem('user_streak') || '0'));
                 }
-                localStorage.setItem('last_login_date', today);
-            } else {
-                setStreak(currentStreak);
-            }
+            };
+
+            syncUserStats();
         }
     }, [currentUser]);
 
@@ -171,6 +217,20 @@ const Board = ({ onSwitchMode }) => {
     };
 
     // Bulk Selection
+    const [sprintDeadline, setSprintDeadline] = useState(null);
+
+    const fetchSprintDeadline = async () => {
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/sprint/deadline`);
+            if (res.ok) {
+                const data = await res.json();
+                setSprintDeadline(data);
+            }
+        } catch (e) {
+            console.error("Failed to fetch sprint deadline", e);
+        }
+    };
+
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState(new Set());
 
@@ -261,17 +321,27 @@ const Board = ({ onSwitchMode }) => {
         }
     };
 
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 500); // 500ms debounce
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
     useEffect(() => {
         if (currentUser) {
             fetchSpeakers();
             fetchLogs();
+            fetchSprintDeadline();
             if (currentUser.isAdmin) {
                 fetchAuthorizedUsers();
             }
             const interval = setInterval(fetchLogs, 10000);
             return () => clearInterval(interval);
         }
-    }, [currentUser, filterMode, searchTerm]);
+    }, [currentUser, filterMode, debouncedSearchTerm]);
 
     // Hourly refresh for bounty board
     useEffect(() => {
@@ -650,6 +720,12 @@ const Board = ({ onSwitchMode }) => {
                 }));
 
                 // Update Log
+
+                // Sync Gamification from Backend (since backend awards XP)
+                getMyDetails().then(u => {
+                    setUserXP(u.xp);
+                    setStreak(u.streak);
+                });
                 setActivityLog(prev => [{
                     id: Date.now(),
                     user: currentUser?.name || 'Unknown',
@@ -714,6 +790,19 @@ const Board = ({ onSwitchMode }) => {
                         </h1>
                         <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase opacity-70">Outreach Terminal</p>
                     </div>
+
+                    {/* Sprint Deadline Timer */}
+                    {sprintDeadline && (
+                        <div className="hidden md:flex flex-col items-center justify-center bg-red-950/20 px-4 py-1 rounded-xl border border-red-500/20 ml-6 group hover:border-red-500/40 transition-all">
+                            <div className="flex items-center gap-2">
+                                <span className="flex h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Deadline Approaching</span>
+                            </div>
+                            <div className="text-xs font-mono font-bold text-white flex gap-2">
+                                <Countdown targetDate={sprintDeadline.deadline} />
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 ml-4">
                         <button

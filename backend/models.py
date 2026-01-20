@@ -22,6 +22,8 @@ class SponsorStatus(str, Enum):
     ONBOARDED = "ONBOARDED"
     REJECTED = "REJECTED"
 
+from pydantic import EmailStr, validator
+
 class Speaker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     batch: Optional[str] = None
@@ -36,7 +38,7 @@ class Speaker(SQLModel, table=True):
     contact_method: Optional[str] = None
     
     # Tracking Fields
-    email: Optional[str] = None
+    email: Optional[str] = Field(default=None, unique=True)
     phone: Optional[str] = None
     remarks: Optional[str] = None # Quick remarks for floating tags
     spoc_name: Optional[str] = None # Single Point of Contact
@@ -60,7 +62,7 @@ class Speaker(SQLModel, table=True):
     last_activity: Optional[datetime] = Field(default_factory=datetime.now)
 
 class SpeakerUpdate(SQLModel):
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     remarks: Optional[str] = None
     spoc_name: Optional[str] = None
@@ -81,10 +83,10 @@ class SpeakerUpdate(SQLModel):
 
 class Sponsor(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    company_name: str = Field(index=True)
+    company_name: str = Field(index=True, unique=True)
     industry: Optional[str] = None
     contact_person: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[str] = Field(default=None, unique=True)
     phone: Optional[str] = None
     website: Optional[str] = None
     linkedin_url: Optional[str] = None
@@ -109,7 +111,7 @@ class SponsorUpdate(SQLModel):
     company_name: Optional[str] = None
     industry: Optional[str] = None
     contact_person: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     website: Optional[str] = None
     linkedin_url: Optional[str] = None
@@ -187,11 +189,19 @@ class AuthorizedUser(SQLModel, table=True):
     role: UserRole = Field(default=UserRole.SPEAKER_OUTREACH)
     added_by: Optional[str] = None
     added_at: datetime = Field(default_factory=datetime.now)
+    
+    # Gamification
+    xp: int = Field(default=0)
+    streak: int = Field(default=0)
+    last_login_date: Optional[str] = None
 
 class AuthorizedUserUpdate(SQLModel):
     name: Optional[str] = None
     is_admin: Optional[bool] = None
     role: Optional[UserRole] = None
+    xp: Optional[int] = None
+    streak: Optional[int] = None
+    last_login_date: Optional[str] = None
 
 class AuthorizedUserCreate(SQLModel):
     roll_number: str

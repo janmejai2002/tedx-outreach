@@ -5,21 +5,45 @@ import {
     ShieldCheck, Activity, Award, CheckSquare,
     Palette, Building2, User, Sparkles, CheckCircle
 } from 'lucide-react';
-import { getAllUsers, updateUserRole } from '../api';
+import { getAllUsers, updateUserRole, getCreativeRequests, createCreativeRequest, updateCreativeRequest } from '../api';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const AdminPanel = ({ onClose, speakers = [] }) => {
-    const [activeTab, setActiveTab] = useState('users'); // users | analytics
+    const [activeTab, setActiveTab] = useState('users'); // users | analytics | creative
     const [users, setUsers] = useState([]);
+    const [creativeRequests, setCreativeRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [addingUser, setAddingUser] = useState(false);
+    const [newRequest, setNewRequest] = useState({ title: '', description: '', priority: 'MEDIUM', due_date: '' });
     const [newUser, setNewUser] = useState({ roll_number: '', name: '', is_admin: false, role: 'SPEAKER_OUTREACH' });
 
     useEffect(() => {
         fetchUsers();
+        fetchCreativeRequests();
     }, []);
+
+    const fetchCreativeRequests = async () => {
+        try {
+            const data = await getCreativeRequests();
+            setCreativeRequests(data);
+        } catch (error) {
+            console.error("Failed to fetch creative requests", error);
+        }
+    };
+
+    const handleCreateRequest = async (e) => {
+        e.preventDefault();
+        try {
+            await createCreativeRequest(newRequest);
+            setNewRequest({ title: '', description: '', priority: 'MEDIUM', due_date: '' });
+            fetchCreativeRequests();
+            alert("Creative request submitted!");
+        } catch (error) {
+            alert("Failed to submit request");
+        }
+    };
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -144,6 +168,13 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                     >
                         <TrendingUp size={14} /> Team IQ
                         {activeTab === 'analytics' && <motion.div layoutId="tab-admin" className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('creatives')}
+                        className={`flex-1 flex items-center justify-center gap-2 p-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'creatives' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        <Palette size={14} /> Creative Tickets
+                        {activeTab === 'creatives' && <motion.div layoutId="tab-admin" className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
                     </button>
                 </div>
 
@@ -336,7 +367,7 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'analytics' ? (
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="bg-gradient-to-br from-red-600/10 to-transparent p-6 rounded-2xl border border-red-500/10">
@@ -394,6 +425,104 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                            <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <Palette size={16} className="text-purple-500" /> New Creative Request
+                                </h3>
+                                <form onSubmit={handleCreateRequest} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Project Title (e.g. Speaker Poster)"
+                                        value={newRequest.title}
+                                        onChange={e => setNewRequest({ ...newRequest, title: e.target.value })}
+                                        className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-all font-bold"
+                                        required
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Brief Description"
+                                        value={newRequest.description}
+                                        onChange={e => setNewRequest({ ...newRequest, description: e.target.value })}
+                                        className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-all"
+                                        required
+                                    />
+                                    <select
+                                        value={newRequest.priority}
+                                        onChange={e => setNewRequest({ ...newRequest, priority: e.target.value })}
+                                        className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-all font-black uppercase tracking-widest"
+                                    >
+                                        <option value="LOW">Low priority</option>
+                                        <option value="MEDIUM">Medium priority</option>
+                                        <option value="HIGH">High priority</option>
+                                        <option value="URGENT">Urgent!</option>
+                                    </select>
+                                    <button
+                                        type="submit"
+                                        className="bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-purple-900/30"
+                                    >
+                                        Launch Request
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <Activity size={14} /> Creative Production Pipeline
+                                </h3>
+                                <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/5">
+                                    <div className="grid grid-cols-6 p-4 border-b border-white/10 text-[9px] font-black text-gray-600 uppercase tracking-widest">
+                                        <div className="col-span-2">Project</div>
+                                        <div>Owner</div>
+                                        <div className="text-center">Priority</div>
+                                        <div className="text-center">Status</div>
+                                        <div className="text-right">Time</div>
+                                    </div>
+                                    {creativeRequests.length === 0 ? (
+                                        <div className="p-8 text-center text-gray-600 text-[10px] font-black uppercase tracking-widest">
+                                            No active creative tickets
+                                        </div>
+                                    ) : (
+                                        creativeRequests.map(req => (
+                                            <div key={req.id} className="grid grid-cols-6 p-4 items-center border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                <div className="col-span-2">
+                                                    <p className="text-xs font-bold text-white">{req.title}</p>
+                                                    <p className="text-[9px] text-gray-500 line-clamp-1">{req.description}</p>
+                                                </div>
+                                                <div className="text-[10px] font-mono text-gray-400 capitalize">{req.requested_by}</div>
+                                                <div className="text-center">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${req.priority === 'URGENT' ? 'bg-red-500/20 text-red-500' :
+                                                        req.priority === 'HIGH' ? 'bg-orange-500/20 text-orange-500' :
+                                                            'bg-blue-500/20 text-blue-500'
+                                                        }`}>
+                                                        {req.priority}
+                                                    </span>
+                                                </div>
+                                                <div className="text-center">
+                                                    <select
+                                                        value={req.status}
+                                                        onChange={(e) => {
+                                                            alert("Updating status to " + e.target.value);
+                                                            updateCreativeRequest(req.id, { status: e.target.value }).then(() => fetchCreativeRequests());
+                                                        }}
+                                                        className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-gray-400 font-black uppercase"
+                                                    >
+                                                        <option value="REQUESTED">Requested</option>
+                                                        <option value="IN_PROGRESS">Working</option>
+                                                        <option value="REVIEW">Review</option>
+                                                        <option value="COMPLETED">Done</option>
+                                                    </select>
+                                                </div>
+                                                <div className="text-right text-[9px] text-gray-600 font-mono">
+                                                    {new Date(req.created_at).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         </div>

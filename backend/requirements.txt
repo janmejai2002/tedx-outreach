@@ -7,3 +7,5 @@ requests
 python-multipart
 psycopg2-binary
 python-jose[cryptography]
+slowapi
+pydantic[email]

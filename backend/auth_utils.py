@@ -26,12 +26,12 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        roll_number: str = payload.get("roll")
+        roll_number: str = payload.get("sub")
+        name: str = payload.get("name")
         is_admin: bool = payload.get("is_admin", False)
-        if username is None:
+        if roll_number is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        return {"username": username, "roll_number": roll_number, "is_admin": is_admin}
+        return {"roll_number": roll_number, "username": name, "is_admin": is_admin}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
