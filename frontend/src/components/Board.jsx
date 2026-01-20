@@ -21,7 +21,8 @@ import FocusMode from './FocusMode';
 import TourOverlay from './TourOverlay';
 import RecruiterDashboard from './RecruiterDashboard';
 import IngestionModal from './IngestionModal';
-import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification } from '../api';
+import CreativeRequestModal from './CreativeRequestModal';
+import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification, getSprintDeadline } from '../api';
 import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -368,6 +369,7 @@ const Board = ({ onSwitchMode }) => {
     }, [currentUser]);
 
     const [showTour, setShowTour] = useState(false);
+    const [showCreativeRequest, setShowCreativeRequest] = useState(false);
 
     useEffect(() => {
         // Filter logic
@@ -868,6 +870,13 @@ const Board = ({ onSwitchMode }) => {
                             title="AI Bulk Import"
                         >
                             <Sparkles size={14} /> <span className="hidden md:inline">AI Import</span>
+                        </button>
+                        <button
+                            onClick={() => setShowCreativeRequest(true)}
+                            className="h-8 md:pl-3 md:pr-4 px-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-purple-900/20"
+                            title="Request Creative Asset"
+                        >
+                            <span className="text-sm font-normal">+</span> <span className="hidden md:inline">Request</span>
                         </button>
                     </div>
                 </div>
@@ -1475,6 +1484,23 @@ const Board = ({ onSwitchMode }) => {
             <AnimatePresence>
                 {showIngestion && (
                     <IngestionModal onClose={() => setShowIngestion(false)} />
+                )}
+            </AnimatePresence>
+
+            {/* Creative Request Modal */}
+            <AnimatePresence>
+                {showCreativeRequest && (
+                    <CreativeRequestModal
+                        onClose={() => setShowCreativeRequest(false)}
+                        onSuccess={() => {
+                            confetti({
+                                particleCount: 100,
+                                spread: 70,
+                                origin: { y: 0.6 },
+                                colors: ['#a855f7', '#d946ef', '#ffffff']
+                            });
+                        }}
+                    />
                 )}
             </AnimatePresence>
 

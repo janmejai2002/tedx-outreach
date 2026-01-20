@@ -5,7 +5,7 @@ import {
     ShieldCheck, Activity, Award, CheckSquare,
     Palette, Building2, User, Sparkles, CheckCircle
 } from 'lucide-react';
-import { getAllUsers, updateUserRole, getCreativeRequests, createCreativeRequest, updateCreativeRequest } from '../api';
+import { getAllUsers, updateUserRole, getCreativeRequests, createCreativeRequest, updateCreativeRequest, updateSprintDeadline } from '../api';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -175,6 +175,13 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                     >
                         <Palette size={14} /> Creative Tickets
                         {activeTab === 'creatives' && <motion.div layoutId="tab-admin" className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('control')}
+                        className={`flex-1 flex items-center justify-center gap-2 p-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'control' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        <Activity size={14} /> Control
+                        {activeTab === 'control' && <motion.div layoutId="tab-admin" className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
                     </button>
                 </div>
 
@@ -428,6 +435,49 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                 </div>
                             </div>
                         </div>
+                    ) : activeTab === 'control' ? (
+                        <div className="space-y-8">
+                            <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <Activity size={16} className="text-blue-500" /> Sprint Management
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Set Campaign Deadline</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="datetime-local"
+                                                id="sprint-deadline-input"
+                                                className="flex-1 bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    const val = document.getElementById('sprint-deadline-input').value;
+                                                    if (!val) return alert("Select a date");
+                                                    try {
+                                                        await updateSprintDeadline({ deadline: new Date(val).toISOString() });
+                                                        alert("Sprint deadline updated!");
+                                                    } catch (e) {
+                                                        alert("Failed to update deadline");
+                                                    }
+                                                }}
+                                                className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-4 text-[10px] font-black uppercase tracking-widest"
+                                            >
+                                                Update
+                                            </button>
+                                        </div>
+                                        <p className="text-[9px] text-gray-600 mt-2">This initiates the countdown timer on the main dashboard.</p>
+                                    </div>
+                                    <div className="bg-blue-900/10 border border-blue-500/10 rounded-xl p-4">
+                                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Current Mode</h4>
+                                        <div className="flex items-center gap-2 text-white font-bold text-sm">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                            Active Campaign
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     ) : (
                         <div className="space-y-8">
                             <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
@@ -605,8 +655,8 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                     </div>
                     <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">TEDxXLRI Hub Management Terminal</p>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 };
 

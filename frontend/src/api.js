@@ -226,4 +226,15 @@ export const updateMyGamification = async (data) => {
     return response.data;
 };
 
+// Meta / Sprint
+export const getSprintDeadline = async () => {
+    const response = await api.get('/meta/sprint-deadline');
+    return response.data;
+};
+
+export const updateSprintDeadline = async (data) => {
+    const response = await api.post('/meta/sprint-deadline', data);
+    return response.data;
+};
+
 export default api;

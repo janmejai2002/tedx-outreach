@@ -12,7 +12,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # Import Routers
-from routers import auth, admin, speakers, gamification, sponsors, creatives, ai
+from routers import auth, admin, speakers, gamification, sponsors, creatives, ai, meta
 
 # Load environment variables
 load_dotenv()
@@ -188,3 +188,4 @@ app.include_router(gamification.router)
 app.include_router(sponsors.router)
 app.include_router(creatives.router)
 app.include_router(ai.router)
+app.include_router(meta.router)
