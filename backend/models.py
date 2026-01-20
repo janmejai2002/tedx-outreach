@@ -162,7 +162,7 @@ class CreativeUpdate(SQLModel):
 
 class BulkUpdate(SQLModel):
     ids: List[int]
-    status: Optional[str] = None
+    status: Optional[OutreachStatus] = None
     assigned_to: Optional[str] = None
     is_bounty: Optional[bool] = None
 

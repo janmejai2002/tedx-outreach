@@ -804,6 +804,7 @@ Industry: {sponsor.industry}
 Target Tier: {sponsor.partnership_tier or 'Premium Partner'}
 
 Theme: 'Blurring Lines' (TEDxXLRI 2026)
+More details: Ask for expression of interest tobe a potential sponsor at TEDxXLRI New Delhi
 
 Generate three distinct outreach assets in a single JSON:
 1. "email": A professional partnership pitch (HTML).

@@ -161,6 +161,15 @@ const Board = ({ onSwitchMode }) => {
         setSelectedIds(newSet);
     };
 
+    const handleSelectAll = () => {
+        const allIds = filteredSpeakers.map(s => s.id);
+        setSelectedIds(new Set(allIds));
+    };
+
+    const handleDeselectAll = () => {
+        setSelectedIds(new Set());
+    };
+
     const handleBulkStatusChange = (newStatus) => {
         selectedIds.forEach(id => {
             handleSpeakerUpdate(id, { status: newStatus });
@@ -375,9 +384,11 @@ const Board = ({ onSwitchMode }) => {
     };
 
     const handleBulkUpdate = async (updates) => {
+        if (selectedIds.size === 0) return;
+        setLoading(true);
         try {
             await bulkUpdateSpeakers({
-                ids: Array.from(selectedIds),
+                ids: Array.from(selectedIds).map(id => Number(id)),
                 ...updates
             });
             await fetchSpeakers();
@@ -386,7 +397,11 @@ const Board = ({ onSwitchMode }) => {
             confetti({ particleCount: 30, spread: 50, origin: { y: 0.9 } });
         } catch (error) {
             console.error("Bulk update failed", error);
-            alert("Failed to perform bulk update");
+            const detail = error.response?.data?.detail;
+            const errorMsg = Array.isArray(detail) ? detail.map(d => d.msg).join(", ") : detail;
+            alert(`Failed to perform bulk update: ${errorMsg || error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -925,7 +940,7 @@ const Board = ({ onSwitchMode }) => {
 
             {/* Bulk Action Toolbar */}
             <AnimatePresence>
-                {isSelectMode && selectedIds.size > 0 && (
+                {isSelectMode && (
                     <motion.div
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -933,8 +948,24 @@ const Board = ({ onSwitchMode }) => {
                         className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[80] bg-black/95 border border-white/10 rounded-2xl shadow-2xl p-4 flex items-center gap-6 backdrop-blur-xl"
                     >
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{selectedIds.size} Selected</span>
-                            <span className="text-[8px] text-gray-500 font-bold uppercase">Multi-Action Deployment</span>
+                            <h2 className="text-white font-black text-sm uppercase tracking-tight">Mass Action Terminal</h2>
+                            <div className="flex items-center gap-3">
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{selectedIds.size} Leads Active</p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleSelectAll}
+                                        className="text-[9px] font-black hover:text-white text-gray-600 uppercase tracking-tighter"
+                                    >
+                                        Select All
+                                    </button>
+                                    <button
+                                        onClick={handleDeselectAll}
+                                        className="text-[9px] font-black hover:text-white text-gray-600 uppercase tracking-tighter"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="h-8 w-px bg-white/10" />
