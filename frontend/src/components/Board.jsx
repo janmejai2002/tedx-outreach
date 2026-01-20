@@ -418,19 +418,37 @@ const Board = ({ onSwitchMode }) => {
 
         if (validIds.length === 0) return alert("No valid leads selected");
 
+        console.log(`Starting division of ${validIds.length} leads among ${targetUsers.size} users`);
+
         setLoading(true);
         try {
             const users = Array.from(targetUsers);
-            const chunkSize = Math.ceil(validIds.length / users.length);
+            const totalLeads = validIds.length;
+            const userCount = users.length;
 
-            for (let i = 0; i < users.length; i++) {
-                const chunk = validIds.slice(i * chunkSize, (i + 1) * chunkSize);
+            // Calculate baseline chunk size
+            const baseSize = Math.floor(totalLeads / userCount);
+            const remainder = totalLeads % userCount;
+
+            let currentIndex = 0;
+            for (let i = 0; i < userCount; i++) {
+                // Distribute remainder leads one by one to users
+                const currentChunkSize = baseSize + (i < remainder ? 1 : 0);
+                const chunk = validIds.slice(currentIndex, currentIndex + currentChunkSize);
+
                 if (chunk.length > 0) {
-                    await bulkUpdateSpeakers({
-                        ids: chunk,
-                        assigned_to: users[i]
-                    });
+                    try {
+                        console.log(`Assigning ${chunk.length} leads to ${users[i]}`);
+                        await bulkUpdateSpeakers({
+                            ids: chunk,
+                            assigned_to: users[i]
+                        });
+                    } catch (chunkError) {
+                        console.error(`Failed to assign chunk to ${users[i]}`, chunkError);
+                        throw new Error(`Failed to assign leads to ${users[i]}: ${chunkError.response?.data?.detail || chunkError.message}`);
+                    }
                 }
+                currentIndex += currentChunkSize;
             }
 
             await fetchSpeakers();
@@ -438,10 +456,10 @@ const Board = ({ onSwitchMode }) => {
             setTargetUsers(new Set());
             setShowDivideModal(false);
             setIsSelectMode(false);
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
         } catch (e) {
             console.error("Divide failed", e);
-            alert("An error occurred during division");
+            alert(`An error occurred during division: ${e.message}`);
         } finally {
             setLoading(false);
         }
