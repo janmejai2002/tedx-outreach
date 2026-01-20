@@ -71,6 +71,7 @@ const Board = ({ onSwitchMode }) => {
 
     // Assignment & Filtering State
     const [authorizedUsers, setAuthorizedUsers] = useState([]);
+    const [userMap, setUserMap] = useState({}); // Maps roll_number -> name
     const [filterMode, setFilterMode] = useState('ALL'); // ALL, ME, UNASSIGNED
 
     // Gamification State
@@ -135,8 +136,7 @@ const Board = ({ onSwitchMode }) => {
         { id: 4, title: 'Research 3 Profiles', target: 3, current: 0, reward: 75, completed: false, dismissed: false }
     ]);
 
-    // Dark Psychology Gamification
-    const [streak, setStreak] = useState(parseInt(localStorage.getItem('tedx_streak') || '0'));
+    // Dark Psychology Gamification (additional states)
     const [lastActiveDate, setLastActiveDate] = useState(localStorage.getItem('tedx_last_active') || new Date().toDateString());
     const [dailyGoal, setDailyGoal] = useState({ target: 5, current: 0 }); // 5 actions per day
     const [teamRank, setTeamRank] = useState(null);
@@ -239,6 +239,28 @@ const Board = ({ onSwitchMode }) => {
         }
     };
 
+    const fetchAuthorizedUsers = async () => {
+        if (!localStorage.getItem('tedx_token')) return;
+        try {
+            const token = localStorage.getItem('tedx_token');
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/admin/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const users = await res.json();
+                setAuthorizedUsers(users);
+                // Create userMap: roll_number -> name
+                const map = {};
+                users.forEach(u => {
+                    map[u.roll_number] = u.name;
+                });
+                setUserMap(map);
+            }
+        } catch (e) {
+            console.error("Failed to fetch users", e);
+        }
+    };
+
     useEffect(() => {
         if (currentUser) {
             fetchSpeakers();
@@ -251,21 +273,18 @@ const Board = ({ onSwitchMode }) => {
         }
     }, [currentUser, filterMode, searchTerm]);
 
-    const fetchAuthorizedUsers = async () => {
-        try {
-            const { getAuthorizedUsers } = await import('../api');
-            const users = await getAuthorizedUsers();
-            setAuthorizedUsers(users);
-        } catch (error) {
-            console.error("Failed to fetch users", error);
-        }
-    };
-
     useEffect(() => {
         if (!localStorage.getItem('tedx_tour_completed')) {
             setShowTour(true);
         }
     }, []);
+
+    useEffect(() => {
+        // Fetch users for everyone (needed for userMap to display names)
+        if (currentUser) {
+            fetchAuthorizedUsers();
+        }
+    }, [currentUser]);
 
     const [showTour, setShowTour] = useState(false);
 
