@@ -224,11 +224,8 @@ const Board = ({ onSwitchMode }) => {
 
     const fetchSprintDeadline = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/sprint/deadline`);
-            if (res.ok) {
-                const data = await res.json();
-                setSprintDeadline(data);
-            }
+            const data = await getSprintDeadline();
+            setSprintDeadline(data);
         } catch (e) {
             console.error("Failed to fetch sprint deadline", e);
         }

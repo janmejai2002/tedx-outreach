@@ -13,7 +13,7 @@ router = APIRouter(tags=["AI"])
 
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 # Using a robust sonar-online model for live info or instruct model
-MODEL = "llama-3.1-sonar-small-128k-online" 
+MODEL = "sonar" 
 
 class RefineRequest(BaseModel):
     current_draft: str
