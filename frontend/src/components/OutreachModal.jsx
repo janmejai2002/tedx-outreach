@@ -6,7 +6,7 @@ import {
     User, Sparkles, X, Activity, Users, TrendingUp,
     Pencil, Save, CheckCircle
 } from 'lucide-react';
-import { getSpeakerLogs, assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail, getAiPrompt } from '../api';
+import { getSpeakerLogs, assignSpeaker, unassignSpeaker, generateEmail, updateSpeaker, refineEmail, getAiPrompt, huntEmail } from '../api';
 import { Copy, Check } from 'lucide-react';
 
 const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], currentUser = null }) => {
@@ -22,6 +22,7 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
     const [isDraftEditing, setIsDraftEditing] = useState(false);
     const [history, setHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [hunting, setHunting] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -143,6 +144,25 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
         await updateSpeaker(speaker.id, patches);
         onUpdate(speaker.id, patches);
         setIsEditing(false);
+    };
+
+    const handleHuntEmail = async () => {
+        setHunting(true);
+        try {
+            const result = await huntEmail(speaker.id);
+            if (result.email) {
+                setFormData(prev => ({ ...prev, email: result.email }));
+                onUpdate(speaker.id, { email: result.email, status: 'EMAIL_ADDED' });
+                alert("AI successfully found the email!");
+            } else {
+                alert("AI could not find a public email for this speaker.");
+            }
+        } catch (e) {
+            console.error("Hunt failed", e);
+            alert("Lead hunting failed. AI service might be busy.");
+        } finally {
+            setHunting(false);
+        }
     };
 
     const handleAssign = async (roll) => {
@@ -303,7 +323,19 @@ const OutreachModal = ({ speaker, onClose, onUpdate, authorizedUsers = [], curre
                                             className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:border-red-500 outline-none"
                                         />
                                     ) : (
-                                        <p className="text-sm text-white break-all">{formData.email || <span className="text-gray-600 italic">No email</span>}</p>
+                                        <div className="flex items-center gap-3">
+                                            <p className="text-sm text-white break-all">{formData.email || <span className="text-gray-600 italic">No email</span>}</p>
+                                            {!formData.email && (
+                                                <button
+                                                    onClick={handleHuntEmail}
+                                                    disabled={hunting}
+                                                    className="px-2 py-0.5 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white rounded text-[8px] font-black uppercase tracking-widest border border-red-500/30 transition-all flex items-center gap-1"
+                                                >
+                                                    {hunting ? <Sparkles size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                                                    {hunting ? 'Hunting...' : 'AI Hunt'}
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                                 <div className="space-y-1">

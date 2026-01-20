@@ -24,7 +24,7 @@ import SpeakerColumn from './SpeakerColumn';
 import BoardHeader from './BoardHeader';
 import IngestionModal from './IngestionModal';
 import CreativeRequestModal from './CreativeRequestModal';
-import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification, getSprintDeadline } from '../api';
+import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification, getSprintDeadline, bulkHuntEmails } from '../api';
 import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -637,6 +637,35 @@ const Board = ({ onSwitchMode }) => {
         }
     };
 
+    const handleBulkHunt = async () => {
+        const validIds = Array.from(selectedIds)
+            .map(id => parseInt(id))
+            .filter(id => !isNaN(id));
+
+        if (validIds.length === 0) return;
+        setLoading(true);
+        try {
+            const result = await bulkHuntEmails(validIds);
+            await fetchSpeakers();
+            setSelectedIds(new Set());
+            setIsSelectMode(false);
+            alert(`AI Hunt complete! Found ${result.found} emails.`);
+            if (result.found > 0) {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#3b82f6', '#ffffff', '#60a5fa']
+                });
+            }
+        } catch (error) {
+            console.error("Bulk hunt failed", error);
+            alert(`Hunt failed: ${error.response?.data?.detail || error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const toggleTargetUser = (roll) => {
         const next = new Set(targetUsers);
         if (next.has(roll)) next.delete(roll);
@@ -1190,6 +1219,14 @@ const Board = ({ onSwitchMode }) => {
                                 title="Clear Assignments (Reset Division)"
                             >
                                 <Undo size={12} /> Reset
+                            </button>
+
+                            <button
+                                onClick={handleBulkHunt}
+                                disabled={loading}
+                                className="h-9 px-4 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-blue-500/20"
+                            >
+                                <Sparkles size={12} /> Hunt Emails
                             </button>
 
                             {currentUser?.isAdmin && (

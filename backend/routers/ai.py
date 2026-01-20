@@ -8,7 +8,7 @@ import requests
 import json
 from pydantic import BaseModel
 from typing import Optional
-from ai_utils import call_ai
+from ai_utils import call_ai, hunt_email
 
 router = APIRouter(tags=["AI"])
 
@@ -18,6 +18,9 @@ class RefineRequest(BaseModel):
 
 class IngestRequest(BaseModel):
     raw_text: str
+
+class BulkHuntRequest(BaseModel):
+    ids: list[int]
 
 @router.post("/generate-email")
 async def generate_email(
@@ -198,3 +201,53 @@ def get_ai_prompt(
         
     prompt = f"Draft a professional invitation email for {speaker.name} who is a {speaker.primary_domain}. Mention TEDxXLRI..."
     return {"prompt": prompt}
+
+@router.post("/hunt-email")
+async def hunt_email_for_speaker(
+    speaker_id: int,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+
+    email = hunt_email(speaker.name, speaker.primary_domain or "", speaker.location or "")
+    
+    if email and "@" in email:
+        speaker.email = email.strip()
+        if speaker.status == OutreachStatus.SCOUTED:
+            speaker.status = OutreachStatus.EMAIL_ADDED
+        session.add(speaker)
+        session.commit()
+        return {"email": email}
+    
+    return {"email": None, "message": email}
+
+@router.post("/bulk-hunt-emails")
+async def bulk_hunt_emails(
+    request: BulkHuntRequest,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    results = []
+    found_count = 0
+    
+    for sid in request.ids:
+        speaker = session.get(Speaker, sid)
+        if not speaker or speaker.email:
+            continue
+            
+        email = hunt_email(speaker.name, speaker.primary_domain or "", speaker.location or "")
+        if email and "@" in email:
+            speaker.email = email.strip()
+            if speaker.status == OutreachStatus.SCOUTED:
+                speaker.status = OutreachStatus.EMAIL_ADDED
+            session.add(speaker)
+            found_count += 1
+            results.append({"id": sid, "name": speaker.name, "email": email})
+        else:
+            results.append({"id": sid, "name": speaker.name, "email": None})
+            
+    session.commit()
+    return {"found": found_count, "results": results}

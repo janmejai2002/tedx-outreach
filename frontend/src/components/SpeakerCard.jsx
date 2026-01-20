@@ -67,12 +67,14 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
 
             {/* Email/Phone Verification Nudge */}
             {speaker.status === 'SCOUTED' && !speaker.email && !speaker.phone && (
-                <div className="absolute top-2 left-2 z-10 group/warn">
-                    <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 animate-pulse">
+                <div className="absolute top-2 left-2 z-10 group/warn flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-full bg-red-600/20 border border-red-500/50 flex items-center justify-center text-red-500 animate-[pulse_2s_infinite]">
                         <Mail size={10} />
                     </div>
+                    <span className="text-[7px] font-black text-red-500 uppercase tracking-tighter opacity-0 group-hover/warn:opacity-100 transition-opacity bg-black/80 px-1 rounded">Missing Email (AI Hunt Ready)</span>
                 </div>
             )}
+
 
             {/* Floating Remarks Tag */}
             {speaker.remarks && (

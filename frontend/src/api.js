@@ -237,4 +237,14 @@ export const updateSprintDeadline = async (data) => {
     return response.data;
 };
 
+export const huntEmail = async (speakerId) => {
+    const response = await api.post(`/hunt-email?speaker_id=${speakerId}`);
+    return response.data;
+};
+
+export const bulkHuntEmails = async (ids) => {
+    const response = await api.post('/bulk-hunt-emails', { ids });
+    return response.data;
+};
+
 export default api;
