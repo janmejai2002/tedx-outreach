@@ -431,8 +431,9 @@ const Board = ({ onSwitchMode }) => {
             const remainder = totalLeads % userCount;
 
             let currentIndex = 0;
+            let failureLog = [];
+
             for (let i = 0; i < userCount; i++) {
-                // Distribute remainder leads one by one to users
                 const currentChunkSize = baseSize + (i < remainder ? 1 : 0);
                 const chunk = validIds.slice(currentIndex, currentIndex + currentChunkSize);
 
@@ -445,10 +446,16 @@ const Board = ({ onSwitchMode }) => {
                         });
                     } catch (chunkError) {
                         console.error(`Failed to assign chunk to ${users[i]}`, chunkError);
-                        throw new Error(`Failed to assign leads to ${users[i]}: ${chunkError.response?.data?.detail || chunkError.message}`);
+                        const rawDetail = chunkError.response?.data?.detail;
+                        const errorMsg = typeof rawDetail === 'object' ? JSON.stringify(rawDetail) : (rawDetail || chunkError.message);
+                        failureLog.push(`${users[i]}: ${errorMsg}`);
                     }
                 }
                 currentIndex += currentChunkSize;
+            }
+
+            if (failureLog.length > 0) {
+                alert(`Partial success. Some assignments failed:\n\n${failureLog.join('\n')}`);
             }
 
             await fetchSpeakers();
@@ -456,7 +463,7 @@ const Board = ({ onSwitchMode }) => {
             setTargetUsers(new Set());
             setShowDivideModal(false);
             setIsSelectMode(false);
-            confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+            if (failureLog.length === 0) confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
         } catch (e) {
             console.error("Divide failed", e);
             alert(`An error occurred during division: ${e.message}`);
