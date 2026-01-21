@@ -17,15 +17,7 @@ def login(request: LoginRequest, response: Response, session: Session = Depends(
     
     # If no roll match, try First Name match (Case insensitive)
     if not user:
-        all_users = session.exec(select(AuthorizedUser)).all()
-        target_name = request.roll_number.lower().strip()
-        for u in all_users:
-            if u.name.split()[0].lower() == target_name:
-                user = u
-                break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credential. Roll/Name not recognized.")
+        raise HTTPException(status_code=401, detail="Invalid credential. Roll number not recognized.")
     
     access_token = create_access_token(data={
         "sub": user.roll_number, 

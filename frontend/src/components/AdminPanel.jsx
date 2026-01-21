@@ -267,7 +267,7 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-bold text-white">{user.name}</p>
-                                                    <p className="text-[9px] font-mono text-gray-400 uppercase tracking-widest">{user.roll_number}</p>
+                                                    <p className="text-[9px] font-mono text-gray-700 hover:text-gray-400 cursor-help transition-colors uppercase tracking-widest" title="Security Masked. Internal ID.">••••••••</p>
                                                 </div>
                                             </div>
                                             <div>

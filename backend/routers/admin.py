@@ -86,6 +86,48 @@ def remove_authorized_user(
     
     return {"message": "User removed successfully"}
 
+@router.patch("/users/{roll_number}")
+def update_authorized_user(
+    roll_number: str,
+    update_data: dict,
+    session: Session = Depends(get_session),
+    admin: dict = Depends(verify_admin)
+):
+    """Update user role or permissions (Admin only)"""
+    user = session.exec(
+        select(AuthorizedUser).where(AuthorizedUser.roll_number == roll_number.lower().strip())
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # SECURITY LOCK: Only allow Janmejai (b25349) to grant Admin status to others
+    # This prevents one admin from creating another admin without your permission
+    if 'is_admin' in update_data and update_data['is_admin'] == True:
+        if admin["roll_number"] != "b25349":
+             raise HTTPException(status_code=403, detail="Only the Super Admin (Janmejai) can grant Admin privileges.")
+
+    if 'role' in update_data:
+        user.role = update_data['role']
+    if 'is_admin' in update_data:
+        user.is_admin = update_data['is_admin']
+        if user.is_admin:
+            user.role = "ADMIN"
+            
+    session.add(user)
+    session.commit()
+    
+    # Log the action
+    log = AuditLog(
+        user_name=admin["username"],
+        action="UPDATE_USER_PERMISSIONS",
+        details=f"Modified {user.name} ({user.roll_number}) - Admin: {user.is_admin}, Role: {user.role}"
+    )
+    session.add(log)
+    session.commit()
+    
+    return user
+
 @router.post("/purge-invalid")
 def purge_invalid_data(
     session: Session = Depends(get_session),
