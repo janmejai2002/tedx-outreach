@@ -24,7 +24,7 @@ import SpeakerColumn from './SpeakerColumn';
 import BoardHeader from './BoardHeader';
 import IngestionModal from './IngestionModal';
 import CreativeRequestModal from './CreativeRequestModal';
-import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification, getSprintDeadline, bulkHuntEmails, approveHuntedEmail, getHealth } from '../api';
+import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification, getSprintDeadline, bulkHuntEmails, approveHuntedEmail, getHealth, getAllUsers } from '../api';
 import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
