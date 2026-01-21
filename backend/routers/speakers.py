@@ -263,7 +263,7 @@ def update_speaker(
             details = f"{status_str} {db_speaker.name} as Bounty"
             
         log = AuditLog(
-            user_name=user_token["username"],
+            user_name=user_token.get("username") or user_token.get("roll_number") or "Unknown",
             action=action,
             details=details,
             speaker_id=speaker_id

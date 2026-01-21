@@ -31,7 +31,9 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
         is_admin: bool = payload.get("is_admin", False)
         if roll_number is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        return {"roll_number": roll_number, "username": name, "is_admin": is_admin}
+        # Ensure username is never null for AuditLog requirements
+        display_name = name if name else roll_number
+        return {"roll_number": roll_number, "username": display_name, "is_admin": is_admin}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
