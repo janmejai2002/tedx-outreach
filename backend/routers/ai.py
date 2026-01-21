@@ -215,12 +215,10 @@ async def hunt_email_for_speaker(
     email = hunt_email(speaker.name, speaker.primary_domain or "", speaker.location or "")
     
     if email and "@" in email:
-        speaker.email = email.strip()
-        if speaker.status == OutreachStatus.SCOUTED:
-            speaker.status = OutreachStatus.EMAIL_ADDED
+        speaker.hunted_email = email.strip()
         session.add(speaker)
         session.commit()
-        return {"email": email}
+        return {"hunted_email": email}
     
     return {"email": None, "message": email}
 
@@ -241,17 +239,48 @@ async def bulk_hunt_emails(
         try:
             email = hunt_email(speaker.name, speaker.primary_domain or "", speaker.location or "")
             if email and "@" in email:
-                speaker.email = email.strip()
-                if speaker.status == OutreachStatus.SCOUTED:
-                    speaker.status = OutreachStatus.EMAIL_ADDED
+                speaker.hunted_email = email.strip()
                 session.add(speaker)
                 found_count += 1
-                results.append({"id": sid, "name": speaker.name, "email": email, "status": "success"})
+                results.append({"id": sid, "name": speaker.name, "hunted_email": email, "status": "success"})
             else:
-                results.append({"id": sid, "name": speaker.name, "email": None, "status": "not_found"})
+                results.append({"id": sid, "name": speaker.name, "hunted_email": None, "status": "not_found"})
         except Exception as e:
             print(f"Individual hunt failure for {speaker.name}: {e}")
             results.append({"id": sid, "name": speaker.name, "email": None, "status": "error", "error": str(e)})
             
     session.commit()
     return {"found": found_count, "results": results}
+
+@router.post("/approve-hunted-email")
+async def approve_hunted_email(
+    speaker_id: int,
+    approve: bool,
+    session: Session = Depends(get_session),
+    user: dict = Depends(verify_token)
+):
+    speaker = session.get(Speaker, speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail="Speaker not found")
+    
+    if approve and speaker.hunted_email:
+        speaker.email = speaker.hunted_email
+        if speaker.status == OutreachStatus.SCOUTED:
+            speaker.status = OutreachStatus.EMAIL_ADDED
+        speaker.hunted_email = None
+    else:
+        speaker.hunted_email = None
+    
+    details = f"{'Approved' if approve else 'Discarded'} AI hunted email for {speaker.name}"
+    log = AuditLog(
+        user_name=user.get("username") or user.get("roll_number") or "Unknown",
+        action="APPROVE_EMAIL" if approve else "DISCARD_EMAIL",
+        details=details,
+        speaker_id=speaker_id
+    )
+    session.add(log)
+    
+    session.add(speaker)
+    session.commit()
+    session.refresh(speaker)
+    return speaker

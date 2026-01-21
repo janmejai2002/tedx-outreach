@@ -24,7 +24,7 @@ import SpeakerColumn from './SpeakerColumn';
 import BoardHeader from './BoardHeader';
 import IngestionModal from './IngestionModal';
 import CreativeRequestModal from './CreativeRequestModal';
-import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification, getSprintDeadline, bulkHuntEmails } from '../api';
+import { getSpeakers, updateSpeaker, exportSpeakers, getLogs, bulkUpdateSpeakers, getMyDetails, updateMyGamification, getSprintDeadline, bulkHuntEmails, approveHuntedEmail, getHealth } from '../api';
 import { Search, Filter, Trophy, Zap, Download, Undo, Redo, Star, Flame, Target, Bell, ListTodo, X, CircleHelp, Shield, Users, CheckCircle, LayoutGrid, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -117,6 +117,41 @@ const Board = ({ onSwitchMode }) => {
     const [userXP, setUserXP] = useState(0);
     const [leaderboard, setLeaderboard] = useState([]);
     const [streak, setStreak] = useState(0);
+
+    // Version Check for Auto-Refresh (Fixes stale code issues)
+    const [appVersion, setAppVersion] = useState(null);
+    useEffect(() => {
+        const checkVersion = async () => {
+            try {
+                const health = await getHealth();
+                if (appVersion && health.version !== appVersion) {
+                    console.log(`🚀 New version detected (${health.version}). Refreshing...`);
+                    // Force refresh after a tiny delay for visibility
+                    setTimeout(() => {
+                        window.location.reload(true);
+                    }, 2000);
+                } else if (!appVersion) {
+                    setAppVersion(health.version);
+                }
+            } catch (e) {
+                console.warn("Version check skipped (offline/server error)");
+            }
+        };
+
+        // Check on focus to be responsive to tab switchers
+        window.addEventListener('focus', checkVersion);
+
+        // Polling check every 5 minutes
+        const interval = setInterval(checkVersion, 5 * 60 * 1000);
+
+        // Initial check
+        checkVersion();
+
+        return () => {
+            window.removeEventListener('focus', checkVersion);
+            clearInterval(interval);
+        };
+    }, [appVersion]);
 
     // Check Streak on Load
     // Sync Gamification on Load
@@ -838,6 +873,23 @@ const Board = ({ onSwitchMode }) => {
         }
     };
 
+    const handleApproveEmail = async (id, approve) => {
+        try {
+            const updatedSpeaker = await approveHuntedEmail(id, approve);
+            setSpeakers(prev => prev.map(s => s.id === id ? updatedSpeaker : s));
+            if (approve) {
+                confetti({
+                    particleCount: 30,
+                    spread: 40,
+                    origin: { y: 0.7 },
+                    colors: ['#22c55e', '#ffffff']
+                });
+            }
+        } catch (e) {
+            console.error("Failed to approve email", e);
+        }
+    };
+
     if (!currentUser) {
         return <LoginModal onLogin={handleLogin} />;
     }
@@ -920,6 +972,7 @@ const Board = ({ onSwitchMode }) => {
                                     isSelectMode={isSelectMode}
                                     selectedIds={selectedIds}
                                     onToggleSelect={toggleSelection}
+                                    onApproveEmail={handleApproveEmail}
                                     viewMode={viewModes[key] || 'kanban'}
                                     onToggleView={() => toggleViewMode(key)}
                                     userMap={userMap}

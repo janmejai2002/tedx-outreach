@@ -39,6 +39,7 @@ class Speaker(SQLModel, table=True):
     
     # Tracking Fields
     email: Optional[str] = Field(default=None, unique=True)
+    hunted_email: Optional[str] = None # For AI hunted emails awaiting approval
     phone: Optional[str] = None
     remarks: Optional[str] = None # Quick remarks for floating tags
     spoc_name: Optional[str] = None # Single Point of Contact

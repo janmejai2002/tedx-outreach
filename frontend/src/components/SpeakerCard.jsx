@@ -2,9 +2,9 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LayoutGrid, MapPin, Mail, Award, CheckCircle, Target, Phone, Tag } from 'lucide-react';
+import { LayoutGrid, MapPin, Mail, Award, CheckCircle, Target, Phone, Tag, Search, X } from 'lucide-react';
 
-const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelected, onToggleSelect, compact = false, assignedName = null }) => {
+const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelected, onToggleSelect, onApproveEmail, compact = false, assignedName = null }) => {
     const {
         attributes,
         listeners,
@@ -155,6 +155,43 @@ const SpeakerCard = ({ speaker, onClick, onStatusChange, isSelectMode, isSelecte
                     </select>
                 )}
             </div>
+
+            {/* AI Hunt Approval System */}
+            {speaker.hunted_email && !isSelectMode && (
+                <div className="mt-3 p-2 bg-blue-600/10 border border-blue-500/20 rounded-lg flex items-center justify-between gap-2 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="w-5 h-5 rounded bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                            <Search size={10} />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-[7px] text-blue-400 font-black uppercase tracking-widest">AI Discovered</span>
+                            <span className="text-[10px] font-bold text-blue-100 truncate">{speaker.hunted_email}</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onApproveEmail) onApproveEmail(speaker.id, true);
+                            }}
+                            className="w-7 h-7 rounded-md bg-green-500/20 hover:bg-green-500/40 text-green-400 flex items-center justify-center transition-colors border border-green-500/30"
+                            title="Approve Email"
+                        >
+                            <CheckCircle size={14} />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onApproveEmail) onApproveEmail(speaker.id, false);
+                            }}
+                            className="w-7 h-7 rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-500 flex items-center justify-center transition-colors border border-red-500/30"
+                            title="Discard"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </motion.div>
     );
 };

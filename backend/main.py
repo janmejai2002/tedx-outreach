@@ -36,6 +36,7 @@ def auto_migrate():
         ("tags", "VARCHAR"),
         ("phone", "VARCHAR"),
         ("remarks", "VARCHAR"),
+        ("hunted_email", "VARCHAR"),
         ("last_activity", "TIMESTAMP")
     ]
     
@@ -195,8 +196,8 @@ def read_root():
 def health_check():
     return {
         "status": "healthy",
-        "version": "1.0.5",
-        "last_deploy": "2026-01-21 03:35:00"
+        "version": "1.0.6",
+        "last_deploy": "2026-01-21 11:30:00"
     }
 
 @app.get("/logs")

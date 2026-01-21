@@ -262,6 +262,11 @@ export const updateSprintDeadline = async (data) => {
     return response.data;
 };
 
+export const getHealth = async () => {
+    const response = await api.get('/healthz');
+    return response.data;
+};
+
 export const huntEmail = async (speakerId) => {
     const response = await api.post(`/hunt-email?speaker_id=${speakerId}`);
     return response.data;
@@ -269,6 +274,11 @@ export const huntEmail = async (speakerId) => {
 
 export const bulkHuntEmails = async (ids) => {
     const response = await api.post('/bulk-hunt-emails', { ids });
+    return response.data;
+};
+
+export const approveHuntedEmail = async (speakerId, approve) => {
+    const response = await api.post(`/approve-hunted-email?speaker_id=${speakerId}&approve=${approve}`);
     return response.data;
 };
 

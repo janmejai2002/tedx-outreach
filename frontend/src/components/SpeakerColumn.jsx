@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import SpeakerCard from './SpeakerCard';
 import { LayoutGrid, Search } from 'lucide-react';
 
-const SpeakerColumn = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectMode, selectedIds, onToggleSelect, viewMode = 'kanban', onToggleView, userMap = {} }) => {
+const SpeakerColumn = ({ id, title, speakers, onSpeakerClick, onStatusChange, isSelectMode, selectedIds, onToggleSelect, onApproveEmail, viewMode = 'kanban', onToggleView, userMap = {} }) => {
     const { setNodeRef, isOver } = useDroppable({ id });
 
     return (
@@ -35,6 +35,7 @@ const SpeakerColumn = ({ id, title, speakers, onSpeakerClick, onStatusChange, is
                             isSelectMode={isSelectMode}
                             isSelected={selectedIds.has(speaker.id)}
                             onToggleSelect={onToggleSelect}
+                            onApproveEmail={onApproveEmail}
                             compact={viewMode === 'gallery'}
                             assignedName={userMap[speaker.assigned_to] || speaker.assigned_to}
                         />
