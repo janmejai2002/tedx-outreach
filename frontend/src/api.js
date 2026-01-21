@@ -213,7 +213,7 @@ export const restoreBackup = async (data) => {
 };
 
 export const updateUserRole = async (rollNumber, data) => {
-    const response = await api.patch(`/users/${rollNumber}`, data);
+    const response = await api.patch(`/admin/users/${rollNumber}`, data);
     return response.data;
 };
 

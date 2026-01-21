@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
-from models import Speaker, OutreachStatus
+from models import Speaker, OutreachStatus, AuditLog
 from auth_utils import verify_token
 import os
 import requests

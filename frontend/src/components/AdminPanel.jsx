@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Users, TrendingUp, Shield, Trash2, UserPlus,
     ShieldCheck, Activity, Award, CheckSquare,
-    Palette, Building2, User, Sparkles, CheckCircle
+    Palette, Building2, User, Sparkles, CheckCircle, Edit3
 } from 'lucide-react';
 import {
     getAllUsers,
@@ -128,6 +128,25 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
             efficiency: userLeads.length > 0 ? ((userLocked / userLeads.length) * 100).toFixed(1) : 0
         };
     }).sort((a, b) => b.locked - a.locked);
+
+    const [editingUserRoll, setEditingUserRoll] = useState(null);
+    const [editFormData, setEditFormData] = useState({ name: '', roll_number: '' });
+
+    const startEditing = (user) => {
+        setEditingUserRoll(user.roll_number);
+        setEditFormData({ name: user.name, roll_number: user.roll_number });
+    };
+
+    const handleSaveEdit = async (oldRoll) => {
+        try {
+            await updateUserRole(oldRoll, editFormData);
+            setEditingUserRoll(null);
+            fetchUsers();
+            alert("User updated successfully");
+        } catch (error) {
+            alert("Failed to update user");
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -265,10 +284,27 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                                 <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-black text-[10px] text-white border border-white/5">
                                                     {user.name ? user.name[0] : '?'}
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs font-bold text-white">{user.name}</p>
-                                                    <p className="text-[9px] font-mono text-gray-700 hover:text-gray-400 cursor-help transition-colors uppercase tracking-widest" title="Security Masked. Internal ID.">••••••••</p>
-                                                </div>
+                                                {editingUserRoll === user.roll_number ? (
+                                                    <div className="flex flex-col gap-1 w-full mr-4">
+                                                        <input
+                                                            type="text"
+                                                            className="bg-black border border-white/20 rounded px-2 py-1 text-xs text-white"
+                                                            value={editFormData.name}
+                                                            onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            className="bg-black border border-white/20 rounded px-2 py-1 text-[10px] text-gray-400 font-mono"
+                                                            value={editFormData.roll_number}
+                                                            onChange={e => setEditFormData({ ...editFormData, roll_number: e.target.value })}
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <p className="text-xs font-bold text-white">{user.name}</p>
+                                                        <p className="text-[9px] font-mono text-gray-400 uppercase tracking-widest">{user.roll_number}</p>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div>
                                                 <select
@@ -292,13 +328,40 @@ const AdminPanel = ({ onClose, speakers = [] }) => {
                                             <div className="text-center">
                                                 <span className="text-[8px] font-black text-green-500 bg-green-500/10 px-2 py-1 rounded border border-green-500/20">FULL VIEW</span>
                                             </div>
-                                            <div className="text-right">
-                                                <button
-                                                    onClick={() => handleDeleteUser(user.roll_number)}
-                                                    className="p-2 text-gray-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
+                                            <div className="text-right flex items-center justify-end gap-1">
+                                                {editingUserRoll === user.roll_number ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleSaveEdit(user.roll_number)}
+                                                            className="p-1 text-green-500 hover:bg-green-500/10 rounded text-[9px] font-black"
+                                                        >
+                                                            SAVE
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setEditingUserRoll(null)}
+                                                            className="p-1 text-gray-500 hover:bg-white/10 rounded text-[9px] font-black"
+                                                        >
+                                                            ESC
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => startEditing(user)}
+                                                            className="p-2 text-gray-700 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            title="Edit User Details"
+                                                        >
+                                                            <Edit3 size={12} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteUser(user.roll_number)}
+                                                            className="p-2 text-gray-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            title="Remove User"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
